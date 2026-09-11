@@ -29,8 +29,22 @@
   holes/cliffs/walls, invalid goals, resource bounds, world-grid/hash checks,
   source parity, morphology replay, immutable upstream globals and trace tamper
   rejection. All 18 baseline artifacts verify; no unexpected runtime conflicts.
+- Clean `60c86e3` confirmation batch
+  `20260911T183236_696188Z_random_clutter_audit` reproduced all nine case outcomes
+  and four passing placements with `complete=true`, `dirty=false`. Independently
+  checked all trace hashes and the four guidance exports' hashes, descending
+  costs, goal behavior and invalid masks.
+- Clean headless random-scene regression
+  `20260911T183246_963741Z_stair_p1_cat_audit` used sparse seed 0 at (0,0.2,0),
+  yaw pi/2. Exit 0, outputs valid, completed without failure; all 96 physical
+  support rays passed. Recorded 499 policy / 1,996 physics steps including
+  four terminal samples, minimum sampled CAT cover clearance 0.353909 m and
+  zero CAT contact force across measured links. 217,710 contact records;
+  provisional classifications still include 340 riser/side and 17 swing-support
+  mismatches, not cleared or converted into permissions. This is a reference
+  regression with nonblocking clutter, not a newly learned avoidance result.
 - Commands, assumptions and remaining gates: `RANDOM_CLUTTER_GUIDANCE.md`.
-  Clean-commit batch/physical regression are pending at this entry's creation.
+  Owned simulator exited; no robot, ROS or host-controller changes.
 
 ## 2026-09-11 — controlled articulated contact fixtures and review queue
 

@@ -130,6 +130,26 @@ with support height 0..1.244169 m. They change reachable areas but do not requir
 deviating from the original corridor. Do not report these as avoidance success.
 The fixed retained control yields the same route distance.
 
+Clean revision `60c86e3` reproduced the batch at
+`20260911T183236_696188Z_random_clutter_audit` (`complete=true`, `dirty=false`).
+All nine trace hashes and four guidance hashes/invalid masks/descending costs
+were independently checked. The development batch predates the explicit
+`complete` flag; use the clean run for that check.
+
+A clean headless Isaac run with sparse seed 0 at translation (0,0.2,0), yaw pi/2,
+completed at `20260911T183246_963741Z_stair_p1_cat_audit`: exit 0, outputs valid,
+no failure termination, 499 policy / 1,996 physics steps, all 96 physical
+support-ray checks passed. Minimum sampled CAT cover clearance was 0.353909 m;
+measured CAT normal contact force was zero across all covered links. The policy,
+observations and rewards stayed unchanged. Contact capture retained four
+terminal samples and 217,710 records. Provisional phase/geometry classifications
+still include 340 riser/side and 17 swing-support mismatches; these are not
+independently verified labels or approved contact permissions.
+
+97 unit tests pass, including CPU/CUDA geometry parity and 13 new trace/guidance
+tests. All 18 pinned baseline artifacts verify and no unexpected package
+conflicts were introduced. The owned simulator exited; no robot was accessed.
+
 ## Next gates
 
 1. Review a placement rule for ambiguous morphology additions without silently
