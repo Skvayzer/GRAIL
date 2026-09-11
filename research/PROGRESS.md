@@ -35,6 +35,12 @@
 - 72 tests pass (11 new). No new packages/unexpected environment conflicts,
   GUI, robot connections, ROS edits, training or actuation. Detailed contract,
   measured findings and remaining steps: `ARTICULATED_CONTACTS.md`.
+- Clean-commit confirmation at `8be37fc`:
+  `20260911T154050_843634Z_stair_p1_cat_audit` recorded `dirty=false`, exit 0
+  and valid outputs. It reproduced 1,996 physics steps, four terminal steps,
+  217,451 contact records, all classification counts above and the 0.09351 m
+  minimum CAT cover gap. All owned simulation processes exited. This confirms
+  capture integrity, not verified foot phases or collision-free certification.
 
 ## 2026-09-11 — feature-preserving placement and full-height oracle fields
 

@@ -142,6 +142,15 @@ minimum CAT cover gap 0.09351 m. New capture:
 leaf-name identity, ragged buffers/aggregate parity, terminal/hash checks and
 contact classifications. No new dependencies or unexpected environment conflicts.
 
+### Clean-commit confirmation
+
+Run `20260911T154050_843634Z_stair_p1_cat_audit` used committed revision
+`8be37fc1a4872fcbea2d18211d2f5735d95f2498` with `dirty=false`. It exited 0
+with valid outputs and independently verified contact capture. All step/contact
+counts, classification counts, force reconstruction error and minimum CAT cover
+gap above were reproduced. All owned simulation processes exited. This checks
+reproducibility of the diagnostic; the phase and safety limitations still apply.
+
 ## Next work, in order
 
 1. Review/annotate reference foot phases and the flagged edge/touchdown events;
