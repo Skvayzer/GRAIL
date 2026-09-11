@@ -153,6 +153,11 @@ reproducibility of the diagnostic; the phase and safety limitations still apply.
 
 ## Next work, in order
 
+The controlled articulated fixture suite now passes; see
+[CONTACT_FIXTURES.md](CONTACT_FIXTURES.md). It validates isolated geometry/label
+cases, not the reference phase estimator or contact permissions. The read-only
+review tool groups the flagged stair records into intervals without relabeling.
+
 1. Review/annotate reference foot phases and the flagged edge/touchdown events;
    validate articulated stance/swing/sole rules against controlled negative
    fixtures. Keep uncertain labels out of automatic training penalties.

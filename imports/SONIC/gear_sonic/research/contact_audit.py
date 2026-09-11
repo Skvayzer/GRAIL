@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .contact_accounting import ContactLimits, PhysicsStepTap, bind_contact_names, classify_contact, reference_phase, unpack_contacts
+from .contact_accounting import ContactLimits, PhysicsStepTap, bind_contact_names, classify_contact, reference_phase, sole_regions, unpack_contacts
 from .scene_audit import read_reference, read_snapshot
 from .terrain_snapshot import rotation_wxyz
 from .terrain_surface import TerrainSurface
@@ -45,7 +45,7 @@ class ContactAudit:
             raise ValueError(f"Unresolved contact sensors/filters: {names}, {filter_names}")
         self.sensor_links = bind_contact_names(names, filter_names, paths, filters)
         self.body_indices = [self.robot.body_names.index(link) for link in self.sensor_links]
-        self.sole = self.sole_regions()
+        self.sole = sole_regions(self.cat.probes, self.cat.report["imported_colliders"], self.limits)
         self.phase = self.reference_phases()
         self.steps, self.policy_steps, self.details, self.codes = [], [], [], []
         self.counts = Counter()
@@ -68,27 +68,6 @@ class ContactAudit:
             terrain_hash=self.terrain["sha256"], cat_files=self.cat.fields.meta["files"],
             sole_regions={k: [a.tolist() for a in value] for k, value in self.sole.items()},
             contact_api="https://docs.omniverse.nvidia.com/kit/docs/omni_physics/107.3/extensions/runtime/source/omni.physics.tensors/docs/api/python.html#omni.physics.tensors.impl.api.RigidContactView.get_contact_data")
-
-    def sole_regions(self):
-        regions = {}
-        inventory = self.cat.report["imported_colliders"]
-        for link in ("left_ankle_roll_link", "right_ankle_roll_link"):
-            probes = [p for p in self.cat.probes if p.link == link]
-            if not probes or any(inventory[p.collision_index]["type"] != "Capsule" for p in probes):
-                raise ValueError("Sole region derivation validated for imported G1 foot capsules only")
-            # Capsule centres include both axis endpoints. Use actual radius,
-            # NOT the inflated collider-cover sphere radius for this sole band.
-            offsets = np.array([p.offset for p in probes])
-            radii = np.array([inventory[p.collision_index]["radius"] for p in probes])[:, None]
-            lo, hi = (offsets-radii).min(0), (offsets+radii).max(0)
-            floor = lo[2]
-            lo[:2] += self.limits.sole_edge_inset
-            hi[:2] -= self.limits.sole_edge_inset
-            lo[2], hi[2] = floor-self.limits.sole_half_band, floor+self.limits.sole_half_band
-            if (lo >= hi).any():
-                raise ValueError("Invalid imported sole region")
-            regions[link] = lo, hi
-        return regions
 
     def reference_phases(self):
         _, centers, _, _ = read_reference(self.output.parent)

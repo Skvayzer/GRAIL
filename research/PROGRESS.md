@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-09-11 — controlled articulated contact fixtures and review queue
+
+- Added nine headless physical fixtures with the imported 29-joint G1, measuring
+  all collision-bearing links against every fixture. Tread/rotated tread, injected
+  swing/unknown labels, forefoot/riser, shin/riser, underside, CAT-role box and
+  no-contact control are checked. Zero-gravity/imposed-root diagnostic only;
+  no policy, robot connection, actuation, observation/reward or driver changes.
+- Shared actual capsule-derived sole bounds with the rollout audit. No clearance
+  cover radius is substituted for the real collider. The former rollout sole
+  derivation was moved unchanged, with added finite/dimension rejection.
+- Initial `20260911T154903_971568Z_contact_fixtures` rejected two poor fixture
+  placements. Corrected the pitched-shin face alignment and isolated the
+  forefoot underside patch; no filters/forces were suppressed. The next run
+  `20260911T175139_905885Z_contact_fixtures` exposed arbitrary SDF-gradient
+  selection at a box edge. Exact outward normal-cone checking resolves it;
+  inward/tangent/off-surface normals still reject. Open stair normals unchanged.
+- `20260911T175353_451267Z_contact_fixtures`: all nine passed; 742 approach
+  physics steps, 407 force-bearing records, no unintended pairs. Peak force
+  reconstruction error 0.0000229 N. Independent saved geometry/label/count/hash
+  validation passed. Test phases are injected scenarios, not reference truth.
+- New offline `review_contacts.py` verifies the prior capture before producing
+  immutable-source review JSON/Markdown. Stair contact records group into four
+  riser/side intervals, one 20 ms swing/support mismatch, one initial unverified
+  normal interval and 22 phase-unknown intervals. None is auto-labeled for RL.
+- 84 tests pass (12 new, including adversarial saved-data checks), with CPU/CUDA
+  parity exercised. Environment check has no new conflicts. See
+  `CONTACT_FIXTURES.md` for exact commands, scope and remaining gates.
+
 ## 2026-09-11 — articulated contact capture before reset
 
 - Added headless `--contact-audit`, requiring the existing one-environment

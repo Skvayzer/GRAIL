@@ -143,6 +143,32 @@ def reference_phase(gap, speed, known, limits=ContactLimits()):
     return "unknown"
 
 
+def sole_regions(probes, inventory, limits=ContactLimits()):
+    """Actual capsule sole bounds shared by rollout audit and physical fixtures.
+
+    Imported cover probes include capsule endpoints. Inflate by actual primitive
+    radius, never by the conservative sphere-cover radius used for clearance.
+    """
+    regions = {}
+    for link in ("left_ankle_roll_link", "right_ankle_roll_link"):
+        selected = [p for p in probes if p.link == link]
+        if not selected or any(inventory[p.collision_index]["type"] != "Capsule" for p in selected):
+            raise ValueError("Sole region derivation validated for imported G1 foot capsules only")
+        offsets = np.asarray([p.offset for p in selected], dtype=float)
+        radii = np.asarray([inventory[p.collision_index]["radius"] for p in selected], dtype=float)[:, None]
+        if not np.isfinite(offsets).all() or not np.isfinite(radii).all() or (radii <= 0).any():
+            raise ValueError("Invalid imported capsule dimensions")
+        lo, hi = (offsets-radii).min(0), (offsets+radii).max(0)
+        floor = lo[2]
+        lo[:2] += limits.sole_edge_inset
+        hi[:2] -= limits.sole_edge_inset
+        lo[2], hi[2] = floor-limits.sole_half_band, floor+limits.sole_half_band
+        if (lo >= hi).any():
+            raise ValueError("Invalid imported sole region")
+        regions[link] = lo, hi
+    return regions
+
+
 def classify_contact(partner, is_foot, phase, local_point, sole_lower, sole_upper,
                      normal, force, separation, surface_error, normal_agreement, limits=ContactLimits()):
     values = [*local_point, *sole_lower, *sole_upper, *normal, force, separation, surface_error, normal_agreement]

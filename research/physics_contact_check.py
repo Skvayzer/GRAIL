@@ -19,7 +19,10 @@ def main():
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--accept-isaac-eula", action="store_true")
     parser.add_argument("--cat-scene", type=Path, help="Check a generated CAT USD mesh instead of analytic primitives")
+    parser.add_argument("--articulated", action="store_true", help="Controlled contacts with the imported 29-joint G1, no policy")
     args = parser.parse_args()
+    if args.cat_scene and args.articulated:
+        parser.error("Choose CAT sphere fixtures or articulated fixtures, not both")
     if not args.execute:
         print("Prepared code only. Use --execute --accept-isaac-eula for desktop physics fixtures.")
         return
@@ -41,7 +44,10 @@ def main():
     # output. Kit 5.1's full extension teardown can spin after a completed test.
     # There are no writers/render jobs here; report is closed before this exit.
     try:
-        if args.cat_scene:
+        if args.articulated:
+            from articulated_contact_fixtures import run_articulated_fixtures
+            run_articulated_fixtures(run)
+        elif args.cat_scene:
             from cat_scene_physics import run_cat_scene_check
             run_cat_scene_check(run, args.cat_scene.resolve())
         else:
