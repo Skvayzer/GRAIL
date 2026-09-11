@@ -1,5 +1,36 @@
 # Progress
 
+## 2026-09-12 — collision-screened challenge examples for human review
+
+- Added explicit v2 CAT role provenance: padding is a boundary condition, not
+  a second physical obstacle class. A unique physical causal role plus padding
+  is classified; padding-only/mixed physical roles remain unresolved. Legacy
+  v1 replay and default behavior stay unchanged. Upstream occupancy is exact.
+- Traced the failed arm witnesses to actual reference hand/hip capsule overlap
+  at spawn (left minimum -0.02985 m). Added offline constant-arm examples, with
+  all 14 arm joints within limits and root/waist/legs bitwise unchanged. This
+  changes initial arm configuration; it is NOT yet a validated simulator reset.
+- Fixed six-seed, 10,098-placement voxel-grid screen found 55 arm-conflict
+  candidates with protected-body clearance and role-valid terrain placement:
+  development seeds 0/2/3/42: 7/19/11/9; geometry-validation 101/102: 1/8.
+  All rejections are retained. These validation seeds are not a final unseen
+  policy benchmark. Run: `20260911T211346_576408Z_training_layout_screen`.
+- Follow-up 18-posture sweeps each found four geometric examples: development
+  seed 0 at (-0.4,-0.08,0), validation seed 102 at (0.5,0.4,0), both yaw pi/2.
+  Reports: `20260911T211743_796471Z_posture_witness` and
+  `20260911T211311_525513Z_posture_witness`. Case 17 retains exactly the same
+  feet, has minimum CAT cover gaps 0.07043/0.03652 m and nonlocal capsule-pair
+  clearance 0.06144 m. Route existence is geometric, not a dynamic certificate.
+- Added a read-only video renderer with source/witness hashes, exact CAT and
+  terrain meshes, display-tessellated imported capsules and independently
+  recomputed cover gaps. Renderings are labeled kinematic, NOT policy output.
+  The first rendering was interrupted (exit 143); it is not a delivered demo.
+- The 198-test suite passes. No new physics/controller execution, optimizer
+  step or robot access in this milestone. Training readiness remains false.
+- Stop for user environment review. Still required afterward: witness-backed
+  challenge admission and reset integration, live stochastic collector checks,
+  approval-bound pilot launcher, and approved update/resume validation.
+
 ## 2026-09-12 — bounded learner engine and simulator-bridge preparation
 
 - Added on-policy residual collection, sampled/executed latent pairing, separate

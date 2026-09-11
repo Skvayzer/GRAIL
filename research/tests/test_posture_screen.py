@@ -8,7 +8,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from screen_posture_clutter import classify_reference
-from posture_witness import smooth_blend, joint_dof_order
+from posture_witness import smooth_blend, joint_dof_order, arm_pose
 from gear_sonic.research.body_envelope import Probe
 from gear_sonic.research.capsule_screen import segment_distance, nonlocal_arm_pairs, capsule_gaps
 
@@ -84,6 +84,47 @@ class CapsuleTests(unittest.TestCase):
 
 
 class BlendTests(unittest.TestCase):
+    def fixture(self):
+        suffixes = ("shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")
+        names = [f"{side}_{suffix}_joint" for side in ("left", "right") for suffix in suffixes]
+        names += [f"protected_{i}_joint" for i in range(15)]
+        world = ET.Element("worldbody")
+        root = ET.SubElement(world, "body", name="root")
+        ET.SubElement(root, "joint", name="free_root", type="free")
+        for name in names:
+            body = ET.SubElement(root, "body", name=name+"_body")
+            ET.SubElement(body, "joint", name=name)
+        xml = ET.Element("mujoco")
+        xml.append(world)
+        model = NS(tree=ET.ElementTree(xml), num_dof=29, joints_range=torch.tensor([[-3., 3.]]).repeat(29, 1),
+                   dof_axis=torch.tensor([[1., 0., 0.]]).repeat(29, 1),
+                   body_names=["root"]+[n+"_body" for n in names],
+                   mjcf_data={"body_to_joint": {n+"_body": n for n in names}})
+        model.fk_batch = lambda pose, trans, **kwargs: NS(pose=pose.clone(), trans=trans.clone())
+        raw = dict(pose_aa=torch.full((5, 30, 3), .1), root_trans_offset=torch.zeros(5, 3), fps=25)
+        return dict(model=model, raw=raw)
+
+    def test_constant_posture_corrects_initial_arms_but_never_root_waist_or_legs(self):
+        data = self.fixture()
+        source = data["raw"]["pose_aa"].clone()
+        pose, fk, targets = arm_pose(data, -.5, .15, .7, mode="constant")
+        torch.testing.assert_close(data["raw"]["pose_aa"], source, atol=0, rtol=0)
+        torch.testing.assert_close(pose[:, [0]+list(range(15, 30))], source[:, [0]+list(range(15, 30))], atol=0, rtol=0)
+        self.assertFalse(torch.equal(pose[0, 1:15], source[0, 1:15]))
+        self.assertEqual(len(targets), 14)
+        for index, value in enumerate(targets.values(), start=1):
+            torch.testing.assert_close(pose[:, index], torch.tensor([[value, 0., 0.]]).repeat(5, 1), atol=0, rtol=0)
+        torch.testing.assert_close(fk.trans[0], data["raw"]["root_trans_offset"], atol=0, rtol=0)
+
+    def test_blend_remains_default_and_bad_mode_or_joint_limit_rejects(self):
+        data = self.fixture()
+        pose, _, _ = arm_pose(data, -.5, .15, .7)
+        torch.testing.assert_close(pose, data["raw"]["pose_aa"], atol=0, rtol=0)  # All fixture frames before blend starts.
+        with self.assertRaises(ValueError):
+            arm_pose(data, 0., .1, .7, mode="unknown")
+        with self.assertRaises(ValueError):
+            arm_pose(data, 10., .1, .7, mode="constant")
+
     def test_scalar_dof_order_excludes_free_root(self):
         tree = ET.ElementTree(ET.fromstring('<mujoco><worldbody><body><joint name="root" type="free"/>'
             '<body><joint name="left_elbow_joint"/><body><joint name="left_wrist_yaw_joint"/></body>'

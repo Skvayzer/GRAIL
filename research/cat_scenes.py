@@ -118,7 +118,7 @@ def export_usd(path, vertices, faces):
     stage.GetRootLayer().Save()
 
 
-def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceiling=3):
+def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceiling=3, role_trace="strict-v1"):
     import numpy as np
     grid, random, typical, pf = generator_modules()
     source_manifest = verify_source()
@@ -127,7 +127,7 @@ def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceil
     role_arrays, role_summary = None, None
     if scene == "random":
         from random_cat_roles import trace_random
-        occupied, (xv, yv, zv), role_arrays, role_summary = trace_random(cfg, random)
+        occupied, (xv, yv, zv), role_arrays, role_summary = trace_random(cfg, random, role_trace)
     else:
         xv, yv, zv = random.make_axes(cfg)
         occupied = typical.build_obstacles(scene, np.meshgrid(xv, yv, zv, indexing="ij"))
@@ -194,13 +194,14 @@ def main():
     g.add_argument("--n-side", type=int, choices=range(10), default=9)
     g.add_argument("--n-floor", type=int, choices=range(4), default=3)
     g.add_argument("--n-ceiling", type=int, choices=range(4), default=3)
+    g.add_argument("--role-trace", choices=("strict-v1", "unique-physical-v2"), default="strict-v1")
     args = parser.parse_args()
     if args.command == "fetch":
         fetch(args.source_repo)
     else:
         if not 0 <= args.difficulty <= 1 or args.seed < 0:
             parser.error("Difficulty must be in [0,1] and seed nonnegative")
-        generate(args.scene, args.seed, args.difficulty, args.n_side, args.n_floor, args.n_ceiling)
+        generate(args.scene, args.seed, args.difficulty, args.n_side, args.n_floor, args.n_ceiling, args.role_trace)
 
 
 if __name__ == "__main__":

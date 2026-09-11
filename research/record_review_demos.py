@@ -58,10 +58,12 @@ def load_sources(run, comparison):
     return meta, layout, arrays, saved, compared, report
 
 
-def write_frames(path, fig, update, count, fps=25):
+def write_frames(path, fig, update, count, fps=25, step=2):
     # Simulation has 50 policy steps per second. Sample every second step and
     # include the terminal sample; render at 25 fps (approximately real time).
-    indices = sorted(set(range(0, count, 2)) | {count-1})
+    if type(step) is not int or step < 1 or count < 1 or fps <= 0:
+        raise ValueError("Positive render step, frame count and fps required")
+    indices = sorted(set(range(0, count, step)) | {count-1})
     with imageio.get_writer(path, fps=fps, codec="libx264", quality=8,
                             pixelformat="yuv420p", macro_block_size=1) as writer:
         for n, i in enumerate(indices):

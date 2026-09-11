@@ -23,7 +23,7 @@ def verify_scene_files(directory):
         raise ValueError("Unknown CAT scene schema")
     expected_files = {"obs.npy", "sdf.npy", "bf.npy", "gf.npy", "travel.npy", "scene.usda"}
     if "role_provenance" in data:
-        if (data["scene"] != "random" or data["role_provenance"].get("schema") != "cat-random-role-trace-v1"
+        if (data["scene"] != "random" or data["role_provenance"].get("schema") not in ("cat-random-role-trace-v1", "cat-random-role-trace-v2")
                 or data["role_provenance"].get("file") != "role_trace.npz"):
             raise ValueError("Unvalidated random role provenance")
         expected_files.add("role_trace.npz")

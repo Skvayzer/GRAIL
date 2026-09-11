@@ -122,10 +122,14 @@ maximum world-foot errors 0.079383 / 0.064237 m; measured CAT contact forces zer
 These runs validate the task on a nonblocking control, not learned avoidance.
 
 Offline reconstruction matches all imported reference probe positions exactly.
-A fixed 108-placement sweep found one actual arm-intersection candidate with
-protected lower-body clearance, but the subsequent 18-posture search admitted
-**zero** witnesses. The shifted CAT layout failed role/terrain placement checks;
-nonlocal capsule self-clearance also needs interpretation against actual collision
-filtering. No failing scene is admitted as a training example. Reports are in
-`20260911T203500_861064Z_posture_clutter_screen` and
-`20260911T204125_457962Z_posture_witness`. Kinematic checks do not establish balance.
+The first placement/posture sweep admitted zero witnesses; its failed reports
+are preserved. Subsequent v2 provenance and constant-arm screening found 55
+candidate placements across six fixed seeds. Two placements (development seed
+0 and geometry-validation seed 102) each have four collision-screened arm-pose
+examples with unchanged legs, waist and root. See `ENVIRONMENT_REVIEW.md`.
+
+These are not yet admitted as runtime training scenes. Constant-arm examples
+change spawn posture and require explicit reset/reference integration; original
+reference-clear runtime gates are intentionally still enforced. Kinematic
+clearance does not establish dynamic balance or controller tracking. Human
+review of environment layout is the current pause point, not training approval.

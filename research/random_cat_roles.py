@@ -2,8 +2,9 @@
 
 Binary morphology is not distributive over semantic roles. Preserve original
 memberships where voxels survive; trace causal role bits for newly added cells.
-Mixed-role/padding dependencies are explicitly unresolved for placement, not
-invented exclusive labels. The physical occupancy always stays upstream-exact.
+Mixed physical roles and padding-only dependencies stay unresolved. Explicit
+v2 accepts a unique physical role plus boundary padding; v1 replay is unchanged.
+The physical occupancy always stays upstream-exact.
 """
 import copy
 import hashlib
@@ -46,7 +47,26 @@ def morphology_provenance(masks, iters=1, kernel=3):
     return occupied[crop].copy(), labels[crop].copy()
 
 
-def trace_random(cfg, module):
+TRACE_MODES = ("strict-v1", "unique-physical-v2")
+
+
+def pure_added_roles(dependencies, added, mode="strict-v1"):
+    """Padding is a boundary condition, not a second physical obstacle class.
+
+    V2 allows one physical causal role plus boundary padding; padding-only and
+    multiple physical roles remain unresolved. Keep v1 replay byte-for-byte for
+    existing recorded scenes. No contact permission follows from either mode.
+    """
+    if (mode not in TRACE_MODES or dependencies.dtype != np.uint8
+            or dependencies.shape != added.shape or added.dtype != bool
+            or np.any(dependencies > 15)):
+        raise ValueError("Explicit versioned dependency/added masks required")
+    bits = dependencies if mode == "strict-v1" else dependencies & np.uint8(7)
+    pure = np.isin(bits, list(ROLE_BITS.values())) & added
+    return pure, bits
+
+
+def trace_random(cfg, module, mode="strict-v1"):
     """Private function-global copy wraps two observation points; module untouched."""
     original_build = module.build_occ_from_masks_thick_xyxz
     original_morph = module.closing_opening_padded
@@ -96,14 +116,14 @@ def trace_random(cfg, module):
     before = captured["before"]
     added = occupied & ~before
     dependencies = np.where(added, captured["dependencies"], 0).astype(np.uint8)
-    pure = np.isin(dependencies, list(ROLE_BITS.values())) & added
+    pure, physical_bits = pure_added_roles(dependencies, added, mode)
     unresolved = added & ~pure
     arrays = {"before_morphology": before, "after_morphology": captured["after"],
               "morphology_added_final": added, "added_dependency_bits": dependencies,
               "unresolved_added": unresolved}
     for name, bit in ROLE_BITS.items():
         arrays["source_"+name] = captured["masks"][name]
-        arrays[name] = (captured["masks"][name] & occupied) | (pure & (dependencies == bit))
+        arrays[name] = (captured["masks"][name] & occupied) | (pure & (physical_bits == bit))
     covered = np.logical_or.reduce([arrays[k] for k in ROLE_BITS]) | unresolved
     if not np.array_equal(covered, occupied):
         raise ValueError("Final role trace does not cover upstream occupancy")
@@ -115,6 +135,10 @@ def trace_random(cfg, module):
         role_cells={k: int(arrays[k].sum()) for k in ROLE_BITS},
         semantics="surviving source memberships; additions inherit only a single causal role without padding; mixed/padding additions unresolved",
         occupied_bytes_sha256=hashlib.sha256(occupied.tobytes()).hexdigest())
+    if mode == "unique-physical-v2":
+        summary.update(schema="cat-random-role-trace-v2", mode=mode,
+            boundary_assisted_single_role_cells=int((pure & ((dependencies & PADDING_BIT) != 0)).sum()),
+            semantics="surviving source memberships; added cells inherit a unique physical causal role; padding is recorded but not a physical role; padding-only/mixed physical roles unresolved")
     return occupied, axes, arrays, summary
 
 
@@ -123,7 +147,11 @@ def verify_trace(meta, occupied, arrays, module):
     cfg = module.Cfg(seed=meta["seed"], difficulty=meta["difficulty"],
                      n_rect_L=meta["n_side"], n_rect_R=meta["n_side"],
                      n_rect_F=meta["n_floor"], n_rect_C=meta["n_ceiling"])
-    expected, axes, trace, summary = trace_random(cfg, module)
+    version = meta["role_provenance"].get("schema")
+    if version not in ("cat-random-role-trace-v1", "cat-random-role-trace-v2"):
+        raise ValueError("Unknown CAT role provenance version")
+    mode = "strict-v1" if version.endswith("v1") else "unique-physical-v2"
+    expected, axes, trace, summary = trace_random(cfg, module, mode)
     if (occupied.dtype != np.bool_ or not np.array_equal(occupied, expected)
             or set(arrays) != set(trace) or summary != meta["role_provenance"]
             or meta["resolution"] != cfg.voxel

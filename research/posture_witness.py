@@ -52,11 +52,14 @@ def joint_dof_order(model):
     return names
 
 
-def arm_pose(data, pitch, roll, elbow):
+def arm_pose(data, pitch, roll, elbow, *, mode="blend"):
+    if mode not in ("blend", "constant"):
+        raise ValueError("Explicit blend or constant arm-posture mode required")
     model, raw = data["model"], data["raw"]
     pose = torch.as_tensor(raw["pose_aa"]).float().clone()
     before = pose.clone()
-    blend = smooth_blend(torch.arange(len(pose))/float(raw["fps"]))
+    blend = (smooth_blend(torch.arange(len(pose))/float(raw["fps"])) if mode == "blend"
+             else torch.ones(len(pose)))
     targets, changed = {}, []
     order = joint_dof_order(model)
     joint_bodies = {joint: body for body, joint in model.mjcf_data["body_to_joint"].items()}
@@ -73,14 +76,16 @@ def arm_pose(data, pitch, roll, elbow):
             targets[joint] = value
             changed.append(body)
     fixed = [i for i in range(pose.shape[1]) if i not in changed]
-    if not torch.equal(pose[:, fixed], before[:, fixed]) or not torch.equal(pose[0], before[0]):
-        raise ValueError("Posture witness changed root/waist/legs or spawn")
+    if not torch.equal(pose[:, fixed], before[:, fixed]):
+        raise ValueError("Posture witness changed root/waist/legs")
+    if mode == "blend" and not torch.equal(pose[0], before[0]):
+        raise ValueError("Blended posture changed spawn")
     fk = model.fk_batch(pose[None], torch.as_tensor(raw["root_trans_offset"]).float()[None],
         return_full=True, fps=float(raw["fps"]), target_fps=50, interpolate_data=True)
     return pose, fk, targets
 
 
-def search(reference_run, scene, placement, device="cuda:0"):
+def search(reference_run, scene, placement, device="cuda:0", arm_mode="blend"):
     scene, reference_run = Path(scene).resolve(), Path(reference_run).resolve()
     data = reconstruct(reference_run)
     cv, cf = cat_mesh_arrays(scene)
@@ -99,7 +104,9 @@ def search(reference_run, scene, placement, device="cuda:0"):
     arm_indices = [i for i, p in enumerate(data["probes"]) if any(s in p.link for s in ("shoulder", "elbow", "wrist"))]
     report = dict(schema="grail-cat-posture-witness-v1", simulation_only=True, reference=data["provenance"],
         scene=str(scene), scene_sha256=sha256(scene/"scene.json"), placement=asdict(placement),
-        blend_seconds=[1., 3.], targets_grid=dict(pitch=[-.5, 0., .5], roll=[.05, .15], elbow=[.7, 1.2, 1.7]),
+        arm_mode=arm_mode, initial_arm_pose_changed=arm_mode == "constant",
+        blend_seconds=[1., 3.] if arm_mode == "blend" else None,
+        targets_grid=dict(pitch=[-.5, 0., .5], roll=[.05, .15], elbow=[.7, 1.2, 1.7]),
         role_retention=roles, geometric_route_found=layout["support_graph"]["geometric_route_found"],
         original_reference_clear=layout["reference"]["sampled_reference_clear"],
         original_nonlocal_self_gap_m=float(original_self.min()),
@@ -111,7 +118,7 @@ def search(reference_run, scene, placement, device="cuda:0"):
         for roll in (.05, .15):
             for elbow in (.7, 1.2, 1.7):
                 number = len(report["cases"])
-                pose, fk, targets = arm_pose(data, pitch, roll, elbow)
+                pose, fk, targets = arm_pose(data, pitch, roll, elbow, mode=arm_mode)
                 pos = fk.global_translation[0]
                 quat = fk.global_rotation[0][..., [3, 0, 1, 2]]
                 centers, radii = world_probe_centers(data["probes"], data["model"].body_names, pos, quat)
@@ -149,5 +156,7 @@ if __name__ == "__main__":
     parser.add_argument("--translation", type=float, nargs=3, required=True)
     parser.add_argument("--yaw", type=float, default=1.5707963267948966)
     parser.add_argument("--device", choices=("cpu", "cuda:0"), default="cuda:0")
+    parser.add_argument("--arm-mode", choices=("blend", "constant"), default="blend",
+                        help="Constant changes initial arms too, never root/waist/legs; offline only")
     args = parser.parse_args()
-    search(args.reference_run, args.scene, Placement(tuple(args.translation), args.yaw), args.device)
+    search(args.reference_run, args.scene, Placement(tuple(args.translation), args.yaw), args.device, args.arm_mode)
