@@ -64,3 +64,16 @@
   However, the upstream debug-trajectory exporter then crashed because `Path`
   was not imported. Added the missing import; a clean rerun is still required.
   This is one reference clip, not a general terrain success-rate estimate.
+
+### Baseline reproduced; bounded training tooling added
+
+- Clean stair rerun at commit `2d4bfff`: exit 0, 499 debug steps, strict actor
+  restoration, finite states/actions, no failure termination, 35.668 mm global
+  MPJPE. Run: `20260911T112807_060354Z_stair_p1`.
+- Curb sample also completed: no failure termination, 52.631 mm global MPJPE.
+  Slope and sitting samples are being checked separately.
+- Added a two-update/four-environment recommended PPO smoke command, with a new
+  output directory and opt-in strict checkpoint loading. No CAT reward, obstacle
+  representation, task adapter, or robot integration is being trained yet.
+- Added finite-rollout evidence audit and bounded-training configuration tests.
+  Nine tooling unit tests pass. Actual PPO backward/update verification pending.

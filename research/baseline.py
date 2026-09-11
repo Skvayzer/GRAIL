@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare or execute a bounded desktop-only terrain baseline evaluation.
+"""Prepare or execute a bounded desktop-only terrain baseline or PPO smoke test.
 
 Downloaded checkpoints and scenes stay immutable. Each run receives its own
 checkpoint copy and derived USD files with *only* texture asset paths relocated.
@@ -44,11 +44,9 @@ def prepare_data(manifest, family, run):
     return run / "data" / family
 
 
-def evaluation_command(run, data, stem, num_envs):
-    overrides = {
+def scene_overrides(run, data, stem, num_envs):
+    return {
         "headless": True, "num_envs": num_envs, "seed": 42,
-        "eval_callbacks": "im_eval", "run_eval_loop": False,
-        "eval_output_dir": str(run / "metrics"),
         "hydra.run.dir": str(run / "hydra"),
         "manager_env.config.terrain_motion_dir": str(data),
         "manager_env.config.flat_usd_path": str(ROOT / "assets/flat_placeholder.usda"),
@@ -64,6 +62,12 @@ def evaluation_command(run, data, stem, num_envs):
         "manager_env.commands.motion.motion_lib_cfg.motion_shard_world_size": 1,
         "manager_env.commands.motion.motion_lib_cfg.motion_shard_rank": 0,
     }
+
+
+def evaluation_command(run, data, stem, num_envs):
+    overrides = scene_overrides(run, data, stem, num_envs)
+    overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
+                     eval_output_dir=str(run / "metrics"))
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -77,10 +81,14 @@ def main():
     parser.add_argument("--family", choices=["stair_p1", "curb", "slope", "sitting"], default="stair_p1")
     parser.add_argument("--num-envs", type=int, choices=range(1, 17), default=1)
     parser.add_argument("--execute", action="store_true", help="Run desktop physics, never robot control")
+    parser.add_argument("--training-smoke", action="store_true",
+                        help="Two PPO updates on a disposable checkpoint, not a full training run")
     parser.add_argument("--accept-isaac-eula", action="store_true",
                         help="Explicit user acceptance of the NVIDIA Omniverse license; never enabled by default")
     parser.add_argument("--timeout", type=int, default=600)
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
     if args.execute and not args.accept_isaac_eula:
         package = importlib.metadata.distribution("isaacsim")
         accepted = Path(package.locate_file("isaacsim/kit/EULA_ACCEPTED"))
@@ -95,24 +103,34 @@ def main():
     for item in manifest["files"]:
         verify_file(ROOT / "artifacts" / safe_path(item["path"]), item)
     scene = next(x for x in manifest["scenes"] if x["family"] == args.family)
-    run = ROOT / "runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ") + "_" + args.family)
+    kind = "training_smoke" if args.training_smoke else "evaluation"
+    run = ROOT / "runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ") + "_" + args.family + "_" + kind)
     run.mkdir(parents=True, exist_ok=False)
     data = prepare_data(manifest, args.family, run)
     (run / "checkpoint").mkdir()
     for name in ("last.pt", "config.yaml"):
         shutil.copyfile(ROOT / "artifacts/checkpoint/SONIC/models/terrain_release" / name,
                         run / "checkpoint" / name)
-    command = evaluation_command(run, data, scene["stem"], args.num_envs)
+    if args.training_smoke:
+        from training_smoke import training_command
+        command = training_command(run, scene_overrides(run, data, scene["stem"], args.num_envs))
+    else:
+        command = evaluation_command(run, data, scene["stem"], args.num_envs)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
+              "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
               "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True)),
               "dataset_revision": manifest["revision"], "command": command,
               "status": "prepared_not_executed"}
     record_path = run / "run.json"
+    (run / "environment.json").write_text(json.dumps({
+        "python": sys.version,
+        "packages": {d.metadata["Name"]: d.version for d in importlib.metadata.distributions()},
+    }, indent=2, sort_keys=True) + "\n")
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     print(f"Run directory: {run}", flush=True)
     if not args.execute:
-        print("Prepared only; add --execute to run a new simulation evaluation")
+        print("Prepared only; add --execute to start a new bounded simulation run")
         return
     env = os.environ.copy()
     # Isaac Lab otherwise uses shared /tmp/isaaclab, which may belong to a
@@ -150,10 +168,26 @@ def main():
     except KeyboardInterrupt:
         record.update(status="interrupted", exit_code=130)
     record["metrics_present"] = (run / "metrics/metrics_eval.json").is_file()
+    outputs_valid = False
+    if record["exit_code"] == 0:
+        try:
+            if args.training_smoke:
+                from training_smoke import audit_training
+                report = audit_training(run)
+                record["training_audit"] = report
+                outputs_valid = report["passed"]
+            else:
+                from evaluation_audit import audit_evaluation
+                report = audit_evaluation(run)
+                record["evaluation_audit"] = report
+                outputs_valid = report["valid_evidence"]
+        except Exception as error:
+            record["audit_error"] = f"{type(error).__name__}: {error}"
+    record["outputs_valid"] = outputs_valid
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     print(json.dumps({"status": record["status"], "exit_code": record["exit_code"],
-                      "metrics_present": record["metrics_present"], "log": str(run / "process.log")}))
-    raise SystemExit(record["exit_code"] or (0 if record["metrics_present"] else 2))
+                      "outputs_valid": outputs_valid, "log": str(run / "process.log")}))
+    raise SystemExit(record["exit_code"] or (0 if outputs_valid else 2))
 
 
 if __name__ == "__main__":

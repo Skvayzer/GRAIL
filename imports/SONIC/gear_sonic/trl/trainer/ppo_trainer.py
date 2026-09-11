@@ -359,6 +359,7 @@ class TRLPPOTrainer(PPOTrainer):  # noqa: F405
         resume=False,
         warm_resume=False,
         flexible_load=False,
+        strict_checkpoint_load=False,
         local_seed=None,
         schedule_dict=None,
         accelerator=None,
@@ -390,6 +391,7 @@ class TRLPPOTrainer(PPOTrainer):  # noqa: F405
             local_seed: Per-process random seed for reproducibility under DDP.
             schedule_dict: Dict defining parameter schedules over training steps.
             accelerator: HuggingFace ``Accelerator`` instance for distributed training.
+            strict_checkpoint_load: Require exact policy state-dict keys when restoring.
             **kwargs: Extra keyword arguments forwarded to ``_init_trl`` (e.g.
                 ``disc_model`` for discriminator-based training).
         """
@@ -424,6 +426,7 @@ class TRLPPOTrainer(PPOTrainer):  # noqa: F405
                 resume=resume,
                 warm_resume=warm_resume,
                 flexible_load=flexible_load,
+                strict=strict_checkpoint_load,
             )
 
     def _init_trl(
@@ -2181,7 +2184,7 @@ class TRLPPOTrainer(PPOTrainer):  # noqa: F405
             param_group["lr"] = self.args.learning_rate
 
     def load_checkpoint(
-        self, checkpoint_path, resume=False, warm_resume=False, flexible_load=False
+        self, checkpoint_path, resume=False, warm_resume=False, flexible_load=False, strict=False
     ):  # noqa: D417
         """Load a checkpoint to restore model weights and optionally full training state.
 
@@ -2195,6 +2198,7 @@ class TRLPPOTrainer(PPOTrainer):  # noqa: F405
                 in a new experiment_dir without tripping HF's
                 ``DefaultFlowCallback.on_step_end`` early-stop.
             flexible_load: Reserved for future use; ignored in this build.
+            strict: Reject missing/unexpected policy keys (shape mismatches always fail).
 
         Returns:
             The loaded checkpoint dict.
@@ -2209,7 +2213,7 @@ class TRLPPOTrainer(PPOTrainer):  # noqa: F405
         if "actor_model_state_dict" in checkpoint:
             model.policy.load_state_dict(checkpoint["actor_model_state_dict"])
         elif "policy_state_dict" in checkpoint:
-            model.policy.load_state_dict(checkpoint["policy_state_dict"], strict=False)
+            model.policy.load_state_dict(checkpoint["policy_state_dict"], strict=strict)
         if "value_state_dict" in checkpoint and model.value_model is not None:
             model.value_model.load_state_dict(checkpoint["value_state_dict"])
 

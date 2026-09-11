@@ -9,6 +9,8 @@ from artifacts import digest, portable_asset_reference, safe_path, verify_file
 from baseline import evaluation_command
 from check_environment import ALLOWED, classify
 from snapshot_environment import portable_requirements
+from training_smoke import smoke_overrides, UPDATES, STEPS_PER_ENV
+from evaluation_audit import finite_nested
 
 
 class ArtifactTests(unittest.TestCase):
@@ -36,6 +38,21 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_rollout_validation_rejects_nonfinite_nested_state(self):
+        self.assertTrue(finite_nested({"terminated": [False], "state": [1.0, 2.0]}))
+        self.assertFalse(finite_nested({"state": [[float("nan")]]}))
+        self.assertFalse(finite_nested([float("inf")]))
+
+    def test_training_smoke_has_small_fresh_output_and_strict_load(self):
+        config = smoke_overrides(Path("/run"))
+        self.assertEqual(config["algo.trl.num_total_batches"], UPDATES)
+        self.assertEqual(config["algo.config.num_steps_per_env"], STEPS_PER_ENV)
+        self.assertNotEqual(Path(config["checkpoint"]).parent, Path(config["experiment_dir"]))
+        self.assertTrue(config["warm_resume"])
+        self.assertTrue(config["trainer.strict_checkpoint_load"])
+        self.assertFalse(config["use_wandb"])
+        self.assertEqual(set(config["callbacks"]), {"model_save"})
+
     def test_dependency_exceptions_are_exact_not_blanket(self):
         self.assertFalse(classify(list(ALLOWED))["unexpected"])
         changed = [("isaacsim-kernel", "5.1.0.0", "numpy", "==1.26.0", "2.0.0")]

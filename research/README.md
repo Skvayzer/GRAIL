@@ -45,6 +45,8 @@ git lfs pull --include='imports/SONIC/gear_sonic/data/assets/robot_description/*
 .venv/bin/python research/checkpoint_audit.py
 .venv/bin/python research/baseline.py --family stair_p1
 .venv/bin/python research/baseline.py --family stair_p1 --execute
+# Training plumbing only: 2 updates x 8 steps x 4 environments.
+.venv/bin/python research/baseline.py --family stair_p1 --num-envs 4 --training-smoke --execute
 ```
 
 `fetch` uses the committed manifest. Only maintainers preparing a *new* manifest
@@ -74,3 +76,21 @@ the authors' absolute texture paths; the manifest records relocations to the
 packaged per-scene textures. Missing metallic/roughness maps are explicitly
 cleared in the derived scene, never silently replaced with different physics.
 Original downloaded files retain their upstream checksums.
+
+## Evidence and the training smoke test
+
+Each run retains its configuration, package versions, process log and audit JSON.
+Evaluation validates finite trajectories and strict actor restoration separately
+from the reference clip's success/failure. `trajectory.json` records environment
+zero; the metrics contain all evaluated references.
+
+`--training-smoke` warm-resumes actor, critic and optimizer into a **new** run
+directory, resets training counters, and runs exactly two PPO updates. It opts in
+to strict actor-key loading. It uses the original tracking task, not CAT rewards.
+The audit requires matching actor shapes, finite actor tensors, changed weights,
+and step 2 in the saved checkpoint. Nothing overwrites the downloaded baseline.
+The resulting tiny-run model is disposable and **must not be deployed**.
+
+Short private temporary directories are retained at `/tmp/grail-*`, with a link
+from each run's `tmp` directory. They avoid both cross-user log collisions and
+UNIX socket path-length failures; do not delete another run's temporary data.
