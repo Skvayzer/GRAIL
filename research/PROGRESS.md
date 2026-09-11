@@ -18,8 +18,24 @@
   165 formerly invalid stair frames, 499/499 now valid, no lost valid frames;
   all 499 independent connector checks passed. Maximum XY connection 0.278362 m,
   maximum CPU/GPU packed-feature error 2.03e-6. All 123 tests pass, including
-  ten new connector tests and an updated blocked-source regression. Fresh clean-commit physics and
-  observation replay verification pending. Scope/commands: `PELVIS_GUIDANCE.md`.
+  ten new connector tests and an updated blocked-source regression.
+- Clean `8ab40fa` comparison `20260911T191130_206279Z_pelvis_guidance_audit`
+  reproduced all 165 recoveries and 499 independently checked connectors.
+  Clean Isaac run `20260911T191127_746866Z_stair_p1_cat_audit` exited 0 with
+  valid outputs and 499/499 valid packets. All 499 action-parity checks passed;
+  backbone/adapter hashes unchanged, head gradient norm 0.11701956. Clearance
+  samples/minima, contact counts/classifications and the complete contact
+  payload hash exactly match the earlier no-shadow reference. Recorded target
+  cells and crossed-cell counts match the independent comparison exactly.
+- Full packet replay at the same clean revision passed: CUDA
+  `20260911T191305_276925Z_observation_replay` has exact feature equality; CPU
+  `20260911T191308_344564Z_observation_replay` maximum errors are 1.78814e-7 /
+  1.49012e-7 / 2.02656e-6 for volume/probes/guidance, below unchanged 2e-5.
+  Validity masks match. Shadow sampling averaged 9.85 ms, maximum 32.64 ms;
+  not an end-to-end real-time benchmark.
+- The owned simulator exited; no robot, ROS or real-motion changes. This fixes
+  the recorded guidance validity issue, not avoidance learning or full-body
+  feasibility. Scope, limitations and commands: `PELVIS_GUIDANCE.md`.
 
 ## 2026-09-11 — obstacle observation interface and zero-residual shadow adapter
 

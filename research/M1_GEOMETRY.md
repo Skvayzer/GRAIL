@@ -19,6 +19,8 @@ Random role tracing and diagnostic terrain guidance are now documented in
 still rejects role-based placement. [OBSERVATION_SHADOW.md](OBSERVATION_SHADOW.md)
 adds an observation-only geometry/guidance interface and frozen-clone gradient
 checks, without enabling actor conditioning, contact rewards or M2 training.
+[PELVIS_GUIDANCE.md](PELVIS_GUIDANCE.md) fixes the observation sampler's
+pelvis/stance-patch mismatch while preserving support-node and transit checks.
 
 Desktop simulation only. No new policy training, deployed observation interface,
 robot SDK, ROS changes or actuation. The original terrain checkpoint stays

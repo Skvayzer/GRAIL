@@ -54,6 +54,9 @@ terrain-aware support-graph guidance are in
 The opt-in 3D oracle observation packet and zero-residual frozen-checkpoint
 shadow tests are in [`OBSERVATION_SHADOW.md`](OBSERVATION_SHADOW.md). Their
 predictions are not used for simulator actions, and no avoidance training runs.
+The stair-edge pelvis/support mismatch and checked transit-root correction are
+documented in [PELVIS_GUIDANCE.md](PELVIS_GUIDANCE.md), with 499-frame recovery,
+independent connector checks and unchanged-action simulation confirmation.
 
 ## Desktop commands (from repository root)
 
