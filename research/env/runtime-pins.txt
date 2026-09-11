@@ -1,0 +1,14 @@
+# Overlay on the inherited desktop snapshot; this environment only.
+# Isaac Sim core and Isaac Lab RL both support packaging 23.
+packaging==23.0
+click==8.1.7
+psutil==5.9.8
+# Required by the pinned ONNX; also used by upstream GRAIL's setup script.
+typing_extensions==4.15.0
+# Compatible support packages; no newer CLI/psutil/packaging requirement.
+wandb==0.26.1
+ipython==8.37.0
+wheel==0.45.1
+gitpython==3.1.46
+gitdb==4.0.12
+smmap==5.0.2

@@ -15,6 +15,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 
 from artifacts import ROOT, PROVENANCE, safe_path, verify_file
 
@@ -114,6 +115,14 @@ def main():
         print("Prepared only; add --execute to run a new simulation evaluation")
         return
     env = os.environ.copy()
+    # Isaac Lab otherwise uses shared /tmp/isaaclab, which may belong to a
+    # different desktop user. Never chmod/delete another user's simulator data.
+    # Keep the actual path short: multiprocessing's AF_UNIX sockets have a
+    # ~108-byte path limit. The run-local symlink makes logs easy to locate.
+    temporary_dir = Path(tempfile.mkdtemp(prefix="grail-", dir="/tmp"))
+    (run / "tmp").symlink_to(temporary_dir, target_is_directory=True)
+    env["TMPDIR"] = str(temporary_dir)
+    record["temporary_directory"] = str(temporary_dir)
     env.update(WANDB_MODE="offline", WANDB_DISABLED="true", HF_HUB_OFFLINE="1",
                TRANSFORMERS_OFFLINE="1", PYTHONUNBUFFERED="1", OMP_NUM_THREADS="4")
     if args.accept_isaac_eula:

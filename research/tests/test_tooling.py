@@ -7,6 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from artifacts import digest, portable_asset_reference, safe_path, verify_file
 from baseline import evaluation_command
+from check_environment import ALLOWED, classify
 from snapshot_environment import portable_requirements
 
 
@@ -35,6 +36,11 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_dependency_exceptions_are_exact_not_blanket(self):
+        self.assertFalse(classify(list(ALLOWED))["unexpected"])
+        changed = [("isaacsim-kernel", "5.1.0.0", "numpy", "==1.26.0", "2.0.0")]
+        self.assertEqual(classify(changed)["unexpected"], changed)
+
     def test_snapshot_excludes_editable_projects(self):
         output = portable_requirements("numpy==1.26.4\n-e /private/project\n")
         self.assertIn("numpy==1.26.4", output)

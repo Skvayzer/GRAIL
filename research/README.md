@@ -55,14 +55,19 @@ logs go to `research/runs/`. A process exit code alone is not a passed task.
 First launch requires the user's acceptance of the [NVIDIA Omniverse
 license](https://docs.omniverse.nvidia.com/platform/latest/common/NVIDIA_Omniverse_License_Agreement.html).
 Read it and, only if you agree, add `--accept-isaac-eula` to the `--execute`
-command. Acceptance is never enabled automatically by these scripts. The current
-installation has reached this gate but has not completed a physics rollout.
+command. Acceptance is never enabled automatically by these scripts.
 
 The environment snapshot is from an existing compatible desktop installation,
 not a claim of matching every version in NVIDIA's installer. Core versions and
 package differences must be recorded in evaluation reports. The bootstrap uses
 `--no-deps` deliberately to reproduce that package snapshot; runtime validation
 is still required. Build-time setuptools is constrained for flatdict.
+
+`env/runtime-pins.txt` overlays compatible support-package versions on the
+snapshot. `check_environment.py` rejects unexpected active dependency conflicts;
+three exact upstream metadata conflicts are documented in `PROGRESS.md` (NumPy,
+typing-extensions, FastAPI/Starlette). No web/streaming service is enabled. A
+passing metadata audit is not a physics or training validation.
 
 Each run copies the model and derives its own scene. Some released USDs refer to
 the authors' absolute texture paths; the manifest records relocations to the

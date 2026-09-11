@@ -15,7 +15,9 @@ uv pip install --python .venv/bin/python --no-deps \
   --extra-index-url https://download.pytorch.org/whl/cu128 \
   --index-strategy unsafe-best-match
 uv pip install --python .venv/bin/python --no-deps \
-  'setuptools==80.10.2' 'wheel==0.46.3' 'usd-core==26.3'
+  'setuptools==80.10.2' 'usd-core==26.3'
+uv pip install --python .venv/bin/python --no-deps \
+  -r research/env/runtime-pins.txt
 if [[ ! -d research/deps/IsaacLab/.git ]]; then
   git clone --depth 1 --branch v2.3.2 \
     https://github.com/isaac-sim/IsaacLab.git research/deps/IsaacLab
@@ -27,4 +29,5 @@ uv pip install --python .venv/bin/python --no-deps \
   -e research/deps/IsaacLab/source/isaaclab_rl \
   -e research/deps/IsaacLab/source/isaaclab_tasks \
   -e imports/SONIC/gear_sonic
+.venv/bin/python research/check_environment.py
 echo 'Research environment installed; simulation and training have NOT started.'

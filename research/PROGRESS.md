@@ -42,3 +42,25 @@
 - **Next:** obtain user EULA decision, reconcile research-environment dependency
   pins, rerun the bounded stair evaluation, then a tiny PPO smoke test. No
   simulator rollout, training result, or autonomous navigation is claimed yet.
+
+### Explicit simulator consent and runtime verification resumed
+
+- User explicitly accepted the NVIDIA Omniverse EULA in conversation. Simulation
+  may now be launched with `--accept-isaac-eula`; the default consent gate remains.
+- Added an isolated runtime pin overlay for packaging, click, psutil and
+  typing-extensions. This does not change the original desktop environment.
+- Upstream metadata cannot all be satisfied simultaneously: SONIC requires NumPy
+  1.26.4 versus Isaac Sim's 1.26.0; Isaac Lab requires Starlette 0.49.1 versus
+  Isaac Sim's FastAPI 0.115.7 requiring Starlette <0.46; ONNX requires newer
+  typing-extensions than Isaac Sim pins. Retain the research stack requirements,
+  document these exceptions, and validate simulation separately. No FastAPI or
+  remote simulator streaming service is enabled by our launcher.
+- The installed metadata audit now reports exactly those three documented
+  conflicts and no unexpected conflicts. Support package versions are pinned.
+- Isaac Sim starts on the RTX 5090. Fixed our temp-directory isolation to use
+  short, unique paths (multiprocessing AF_UNIX sockets cannot use long run paths).
+- First complete stair physics rollout restored the actor strictly, finished
+  the single reference with no termination, and reported 35.668 mm global MPJPE.
+  However, the upstream debug-trajectory exporter then crashed because `Path`
+  was not imported. Added the missing import; a clean rerun is still required.
+  This is one reference clip, not a general terrain success-rate estimate.
