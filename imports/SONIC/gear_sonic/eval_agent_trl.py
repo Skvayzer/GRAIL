@@ -628,7 +628,15 @@ def main(override_config: omegaconf.OmegaConf):
             from gear_sonic.research.cat_demo import CatDemo
             cat_demo = CatDemo(env.env.sim, config)
 
-        with torch.no_grad():
+        from contextlib import nullcontext
+        contact_audit = None
+        if config.get("research_contact_output"):
+            if not config.get("research_layout_output") or not run_once or not args_cli.headless:
+                raise ValueError("Articulated contact audit requires headless single-episode layout screening")
+            from gear_sonic.research.contact_audit import ContactAudit
+            contact_audit = ContactAudit(env, clearance_audit, config.research_contact_output)
+
+        with torch.no_grad(), (contact_audit if contact_audit is not None else nullcontext()):
             while simulation_app.is_running():
                 frame_start = time.perf_counter()
                 policy_model = model.policy
@@ -655,6 +663,8 @@ def main(override_config: omegaconf.OmegaConf):
                     results[2],
                     results[3],
                 )  # noqa: F841
+                if contact_audit is not None:
+                    contact_audit.policy_step(dones)
                 if clearance_audit is not None:
                     clearance_audit.sample(actor_state["actions"], dones)
                     if cat_demo is not None and clearance_audit.completed.all():

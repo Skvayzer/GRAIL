@@ -44,6 +44,8 @@ Combined terrain/support/passage screening for new layouts is documented in
 [`SCENE_VALIDATION.md`](SCENE_VALIDATION.md).
 Role-aware rigid placement and full-height, explicitly unsigned-terrain oracle
 fields are documented in [`SCENE_COMPOSITION.md`](SCENE_COMPOSITION.md).
+Per-physics-step articulated contact capture, including terminal steps, is in
+[`ARTICULATED_CONTACTS.md`](ARTICULATED_CONTACTS.md); phase permissions remain provisional.
 
 ## Desktop commands (from repository root)
 

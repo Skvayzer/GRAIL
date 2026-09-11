@@ -10,6 +10,10 @@ The newer [SCENE_COMPOSITION.md](SCENE_COMPOSITION.md) adds explicit fixed-CAT
 roles, rigid grounding and full-height signed-clutter/unsigned-terrain oracle
 features. Open terrain is still not given an invented signed volume; contact
 permissions and random-clutter role provenance remain separate work.
+The newest [ARTICULATED_CONTACTS.md](ARTICULATED_CONTACTS.md) adds opt-in
+pre-reset capture of articulated terrain/ground/CAT contacts at every physics
+step. This closes capture coverage for that diagnostic, not phase-label truth
+or the full contact-permission/avoidance-training gate.
 
 Desktop simulation only. No new policy training, deployed observation interface,
 robot SDK, ROS changes or actuation. The original terrain checkpoint stays
@@ -34,8 +38,9 @@ immutable. These diagnostics do not make the tracker obstacle-aware.
 - A separate diagnostic stream records per-link clutter clearances, pair-filtered
   PhysX normal forces, and broad-phase self-cover gaps. It is not inserted into
   actor/critic inputs or rewards. Negative cover gaps alone do not prove contact.
-- Contact history spans physics substeps; samples after automatic episode resets
-  are skipped. Complete terminal-contact accounting remains an outstanding gate.
+- Older contact histories skip samples after automatic resets. The new opt-in
+  articulated audit reads raw contact buffers before reset and verifies complete
+  terminal coverage; independent stance/swing label validation remains outstanding.
 
 ## CAT sampler parity and intentional v1 differences
 

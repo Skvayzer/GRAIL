@@ -124,7 +124,9 @@ failed checks and runs no policy-loop steps.
 - Full-height mesh-distance fields now cover the entire reference, with terrain
   unsigned distance/support separate. Complete terrain solid/contact semantics
   and terrain-aware guidance without erasing stairs or inventing free space.
-- Complete articulated terrain/swing-foot and terminal-contact accounting.
+- Validate articulated terrain/swing-foot permissions. The new
+  [pre-reset contact audit](ARTICULATED_CONTACTS.md) captures terminal physics
+  steps, but its kinematic reference phase labels are not contact ground truth.
 - Verify visual appearance and bounded dynamic traversal for each curriculum
   family, not just one geometric graph or one released reference.
 - Only then add avoidance observations/rewards and run retention comparisons.

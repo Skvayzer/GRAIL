@@ -1,5 +1,41 @@
 # Progress
 
+## 2026-09-11 — articulated contact capture before reset
+
+- Added headless `--contact-audit`, requiring the existing one-environment
+  layout/reference preflight. Instance-local context-managed `scene.update`
+  observer reads each physics substep before RL automatic reset, without extra
+  physics or observations. No global/dependency patch or controller change.
+- Added independent raw PhysX view for all 14 imported collision-bearing links
+  versus terrain, ground and CAT. Six ragged buffers are validated against their
+  counts/offsets and independent aggregate-force matrix. Saturation, overlap,
+  nonfinite data, ambiguous names and changed filter ordering fail explicitly.
+- Initial run `20260911T153503_445016Z_stair_p1_cat_audit` rejected before the
+  policy loop because the runtime returns leaf names, not full prim paths.
+  Fixed explicit identity binding and added regression coverage; no normal
+  flipping, contact dropping or physics changes to make diagnostics pass.
+- Successful development run `20260911T153625_910820Z_stair_p1_cat_audit`:
+  strict actor load, completed without failure, minimum CAT cover gap 0.09351 m.
+  Captured 499 policy steps / 1,996 physics steps, including four terminal steps
+  with 43 force-bearing point records formerly missed by post-reset observation.
+  217,451 total contact records, 203,515 at/below 0.1 N; reconstruction error
+  <=0.0000916 N. No CAT or non-foot terrain/ground force measured.
+- Conservative geometry/phase classification found 8,541 stance-support
+  candidates, 5,045 phase-unknown records, 327 foot-side/riser records, 20
+  swing-support candidate mismatches and three initially unverified normals.
+  Point records are not independent events. Candidate phase comes from the
+  reference, not actual forces; do not call it verified contact truth or use it
+  blindly as a reward. Foot-edge/phase review is now a concrete next gate.
+- Sole bounds use the actual imported capsule radii/endpoints and articulated
+  WXYZ body transforms. Terrain/ground/CAT remain separate paired surfaces.
+  No collision exemption or contact permission is granted by this diagnostic.
+- Added independent saved artifact validation: hashes, finite payloads, index
+  ranges, classifications, per-step counts, contiguous counters and complete
+  terminal/decimation alignment. Parent launcher requires this for valid output.
+- 72 tests pass (11 new). No new packages/unexpected environment conflicts,
+  GUI, robot connections, ROS edits, training or actuation. Detailed contract,
+  measured findings and remaining steps: `ARTICULATED_CONTACTS.md`.
+
 ## 2026-09-11 — feature-preserving placement and full-height oracle fields
 
 - Added explicit floor/lateral/overhead replay for 20 pinned CAT fixed-scene

@@ -141,8 +141,10 @@ training process or real robot was started for these offline checks.
 
 1. Traceable roles for the **random** CAT generator; terrain/placement curriculum
    that preserves intended challenges without silently changing the distribution.
-2. Articulated terrain/swing-foot and terminal-contact accounting, with actual
-   contact permissions; no terrain-wide collision exemptions.
+2. Articulated terrain/swing-foot contact permissions; no terrain-wide collision
+   exemptions. [ARTICULATED_CONTACTS.md](ARTICULATED_CONTACTS.md) now implements
+   complete pre-reset/terminal capture; independent phase labels and permission
+   validation remain outstanding.
 3. Terrain-aware route/guidance with support semantics and bounded physical
    validation for each scene family; no straight-line/flat-FMM shortcut.
 4. Then avoidance observation/reward wiring, bounded training smoke, terrain
