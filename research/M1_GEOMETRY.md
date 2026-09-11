@@ -63,8 +63,8 @@ The primitive fixture runner exits its process after closing/flushing its report
 as upstream's evaluator does, avoiding Kit extension teardown stalls.
 
 The six `stair_side_v1` solids are **test fixtures**, deliberately outside the
-pinned motion path, not the intended training distribution. The user requested
-the actual CAT generator for training; an adapter for that generator is next.
+pinned motion path, not the intended training distribution. The actual CAT
+generator is now reused with an Isaac exporter: see [CAT_SCENES.md](CAT_SCENES.md).
 
 ## Verified so far / remaining gates
 
@@ -76,9 +76,11 @@ the actual CAT generator for training; an adapter for that generator is next.
   foot/hand contact-skill validation.
 - Initial G1 side-clutter diagnostic: 498 finite samples, 104 probes, 29 imported
   colliders (28 capsules + 1 sphere), 14 collision-bearing links. No clutter
-  contact was expected or measured. Further self-contact instrumentation and
-  physical pose-consistency checks require a fresh confirmation run.
-- Not implemented yet: CAT training-scene export, arbitrary terrain mesh SDF/
+  contact was expected or measured. A clean two-environment run at `7532d6c`
+  confirmed the self-contact instrumentation and physical pose-consistency gates.
+  It measured up to 17.94 N between the right wrist/hip collision links. Do not
+  mistake a passing diagnostic run for a collision-free walking benchmark.
+- Not implemented yet: arbitrary terrain mesh SDF/
   support extraction, full articulated/payload/contact-permission validation,
   calibrated self-pair exclusions and whole-mesh coverage, sensor realism, or
   the full guidance-field parity/goal-conditioned policy.

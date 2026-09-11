@@ -1,5 +1,37 @@
 # Progress
 
+## 2026-09-11 — actual CAT generator reuse and Isaac export
+
+- Per the user's clarification, reused the original CAT generator rather than
+  extending the hand-authored primitive fixtures as a training distribution.
+- Pinned six unchanged source/license files to CAT commit `866ba39`; all hashes
+  were verified against that Git revision. The user's CAT checkout was read-only.
+- Added isolated generator fetch, original random/typical occupancy + FMM field
+  generation, and static non-convex USD mesh export. Corrected exporter world/
+  half-cell coordinates and closed boundary surfaces; preserved source arrays.
+- Generated random seed 42/difficulty 0.2 (16,966 occupied cells), `side0`
+  (4,560), and `side-hurdle-crouch2` (5,628). All report their source and hashes.
+- `20260911T141639_670710Z_contact_fixtures`: side0 passed 384 PhysX ray tests and
+  a dynamic sphere contact. `20260911T141822_060048Z_contact_fixtures`: random
+  scene passed the same checks. Failed development runs remain in runs/.
+- Corrected validation plumbing: explicitly enable headless PhysX scene queries,
+  serialize native scalars, and select genuinely planar sphere-contact patches
+  rather than assuming a point ray implies a planar sphere contact.
+- Generator dependencies added only to this research environment. Restored/pinned
+  ImageIO to Isaac Sim's 2.37.0 requirement; no new metadata exceptions remain.
+- 29 unit tests passed. Comparing unchanged generator code in the original CAT
+  environment (NumPy 2.1.3 / SciPy 1.16.3) with GRAIL (1.26.4 / 1.15.3) found
+  exactly two differing occupancy cells in seed 42, out of 142,500. Source parity
+  is verified, not cross-runtime bitwise parity. Cache/hash generated geometry
+  for matched experiments; do not disturb GRAIL's pinned numerical runtime.
+- Clean `7532d6c` two-environment diagnostic run
+  `20260911T141245_169292Z_stair_p1_clutter_audit`: exit 0, 498 sample batches,
+  104 imported-shape probes, consistent physical clutter poses. Self sensors
+  measured right-wrist/right-hip contact up to 17.94 N; not a collision-free claim.
+- M1 is still partial: scene composition with terrain, complete articulated
+  support/contact semantics, oracle field parity and learned avoidance remain
+  future gates. No policy training, robot connection or actuation in this work.
+
 ## 2026-09-11 — M1 diagnostic geometry (partial)
 
 - Stopped the requested stair GUI demo and its owned simulator process. No robot

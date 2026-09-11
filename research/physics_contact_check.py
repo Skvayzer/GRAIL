@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--accept-isaac-eula", action="store_true")
+    parser.add_argument("--cat-scene", type=Path, help="Check a generated CAT USD mesh instead of analytic primitives")
     args = parser.parse_args()
     if not args.execute:
         print("Prepared code only. Use --execute --accept-isaac-eula for desktop physics fixtures.")
@@ -40,7 +41,11 @@ def main():
     # output. Kit 5.1's full extension teardown can spin after a completed test.
     # There are no writers/render jobs here; report is closed before this exit.
     try:
-        run_fixtures(run)
+        if args.cat_scene:
+            from cat_scene_physics import run_cat_scene_check
+            run_cat_scene_check(run, args.cat_scene.resolve())
+        else:
+            run_fixtures(run)
     except BaseException:
         import traceback
         traceback.print_exc()

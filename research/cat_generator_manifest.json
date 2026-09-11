@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/GalaxyGeneralRobotics/Click-and-Traverse",
+  "revision": "866ba392f1c1e84b92ad75fa66550f26e8af8e48",
+  "license": "Apache-2.0; source fetched unmodified with its LICENSE",
+  "files": {
+    "procedural_obstacle_generation/random_obstacle.py": "a559597489e4c775cb20544c16393232eac3afa2f66fe0da97eb9e8c1865b326",
+    "procedural_obstacle_generation/typical_obstacle.py": "049687b3b7036718155eefe753a7c7e2ddfcbd8ca871539d16302845b5a6b4a7",
+    "procedural_obstacle_generation/grid_config.py": "698d225af6ab73f2895972d820b0941ae10ad05a6c44912297def4d8c3837b64",
+    "procedural_obstacle_generation/pf_modular.py": "208581914395c43e8ef19eb0fd754f42cccf32e98a6bca0893be0e9036b7220c",
+    "procedural_obstacle_generation/pf_grid_config.yaml": "082bee3c155cb272f44b2752462f1004c2c3cacae31f819574e3004ffd064b90",
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  }
+}

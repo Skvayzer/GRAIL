@@ -12,3 +12,9 @@ wheel==0.45.1
 gitpython==3.1.46
 gitdb==4.0.12
 smmap==5.0.2
+# CAT's simulator-independent procedural occupancy/FMM/mesh generation.
+scikit-image==0.26.0
+scikit-fmm==2025.6.23
+imageio==2.37.0
+tifffile==2026.1.14
+lazy-loader==0.4

@@ -36,6 +36,8 @@ completed milestone from the existence of a launcher or configuration.
 The verified four-sample baseline and two-update training smoke results are in
 [`M0_RESULTS.md`](M0_RESULTS.md). CAT obstacle-avoidance training is not implemented yet.
 Geometry contracts and outstanding gates are in [`M1_GEOMETRY.md`](M1_GEOMETRY.md).
+The actual CAT clutter-generator reuse and Isaac USD export are documented in
+[`CAT_SCENES.md`](CAT_SCENES.md).
 
 ## Desktop commands (from repository root)
 
