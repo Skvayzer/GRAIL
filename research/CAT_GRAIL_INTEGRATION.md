@@ -93,3 +93,20 @@ avoidance learner may succeed using a different motion.
   complete terminal contact checks and use larger/appropriate field coverage.
 
 No run from this milestone produces a deployable obstacle-avoiding checkpoint.
+
+## Verified results
+
+- 37 unit tests passed, including CPU/CUDA distance parity and strict invalid
+  field handling. No dependency installations were needed.
+- Clean `937ffbb` run `20260911T144627_656824Z_stair_p1_cat_audit`: two GRAIL
+  environments completed the original stair reference without failure
+  termination, with the wider CAT passage at the placement above. Minimum
+  sampled reference gap: 0.0974 m; minimum actual sampled gap: 0.0948 m;
+  measured CAT contact-force peak: 0 N. There were 498 sampled batches and 104
+  imported-collider cover probes. This is one reference, not a benchmark.
+- Deliberately conflicting `side-hurdle-crouch2` at (-1,0,1), yaw 0, was
+  rejected in `20260911T144242_845662Z_stair_p1_cat_audit`: 426 of 499 reference
+  frames flagged, zero policy-loop samples. The offline checker reproduced it.
+- The accepted passage covers 74.46% of sampled reference-probe positions in
+  its voxel domain. This is evidence that field coverage must be extended for
+  stairs, not permission to fill missing observations with zero.

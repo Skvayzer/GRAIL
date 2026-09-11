@@ -27,8 +27,12 @@
   completed 498 sampled batches, minimum actual gap 0.0948 m, zero measured CAT
   contact. Field coverage of reference probes was 74.46%, not silently extended
   above CAT's fixed-height volume. This is not learned obstacle avoidance.
-- Added explicit failure-versus-timeout outcome reporting after those runs;
-  clean-commit confirmation follows. Documentation and remaining support,
+- Added explicit failure-versus-timeout outcome reporting. Clean `937ffbb`
+  confirmation `20260911T144627_656824Z_stair_p1_cat_audit` exited 0: both
+  environments reached reference timeout without failure termination, 498
+  sampled batches, minimum actual gap 0.0948 m and zero measured CAT contact.
+  Metadata audit reports no unexpected conflicts. All launched runs exited.
+  Documentation and remaining support,
   reference/task-direction and terminal-contact gates: `CAT_GRAIL_INTEGRATION.md`.
 
 ## 2026-09-11 — interactive CAT clutter gallery
