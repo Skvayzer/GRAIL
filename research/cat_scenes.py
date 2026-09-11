@@ -172,15 +172,8 @@ def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceil
 
 
 def verify_scene(directory):
-    data = json.loads((directory/"scene.json").read_text())
-    if data["schema"] != "cat-isaac-scene-v1":
-        raise ValueError("Unknown CAT scene schema")
-    if set(data["files"]) != {"obs.npy", "sdf.npy", "bf.npy", "gf.npy", "travel.npy", "scene.usda"}:
-        raise ValueError("Unexpected scene files")
-    for name, expected in data["files"].items():
-        if sha256(directory/name) != expected:
-            raise ValueError(f"Scene checksum mismatch: {name}")
-    return data
+    from gear_sonic.research.cat_geometry import verify_scene_files
+    return verify_scene_files(directory)
 
 
 def main():

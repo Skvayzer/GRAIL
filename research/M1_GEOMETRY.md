@@ -1,5 +1,9 @@
 # M1 geometry integration — in progress
 
+The newer CAT mesh/field placement and full-reference diagnostic integration
+are in [CAT_GRAIL_INTEGRATION.md](CAT_GRAIL_INTEGRATION.md). These additions do
+not remove the outstanding terrain/support/terminal-contact gates below.
+
 Desktop simulation only. No new policy training, deployed observation interface,
 robot SDK, ROS changes or actuation. The original terrain checkpoint stays
 immutable. These diagnostics do not make the tracker obstacle-aware.

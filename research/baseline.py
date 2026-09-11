@@ -64,7 +64,8 @@ def scene_overrides(run, data, stem, num_envs):
     }
 
 
-def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False):
+def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
+                       cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0.):
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
@@ -76,6 +77,12 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
         overrides.update(eval_callbacks=[], run_eval_loop=True, run_once=True, max_render_steps=501,
                          research_clearance_output=str(run / "clearance_audit.json"))
         overrides["manager_env.config.research_clutter"] = "stair_side_v1"
+    if cat_scene is not None:
+        overrides.update(eval_callbacks=[], run_eval_loop=True, run_once=True, max_render_steps=501,
+                         research_cat_output=str(run/"cat_audit.json"))
+        overrides.update({"manager_env.config.research_cat_scene": str(cat_scene),
+                          "manager_env.config.research_cat_translation": list(cat_translation),
+                          "manager_env.config.research_cat_yaw": cat_yaw})
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -92,6 +99,9 @@ def main():
     parser.add_argument("--gui", action="store_true", help="Interactive repeating policy demo, not a metrics run")
     parser.add_argument("--clutter-audit", action="store_true",
                         help="One bounded stair reference with physical side clutter; no training or avoidance claim")
+    parser.add_argument("--cat-scene", type=Path, help="Opt-in CAT mesh/reference audit; no new learning")
+    parser.add_argument("--cat-translation", type=float, nargs=3, default=(0., 0., 0.), metavar=("X", "Y", "Z"))
+    parser.add_argument("--cat-yaw", type=float, default=0., help="CAT-to-terrain yaw in radians")
     parser.add_argument("--training-smoke", action="store_true",
                         help="Two PPO updates on a disposable checkpoint, not a full training run")
     parser.add_argument("--accept-isaac-eula", action="store_true",
@@ -102,6 +112,15 @@ def main():
         parser.error("--timeout must be positive")
     if args.gui and args.training_smoke:
         parser.error("--gui is for the released-policy demo, not training")
+    if args.cat_scene:
+        if args.training_smoke or args.gui or args.clutter_audit or args.num_envs > 4:
+            parser.error("CAT audit is a separate headless check, at most four environments; no training")
+        from gear_sonic.research.cat_geometry import Placement, verify_scene_files
+        Placement(tuple(args.cat_translation), args.cat_yaw)
+        args.cat_scene = args.cat_scene.resolve()
+        verify_scene_files(args.cat_scene)
+    elif args.cat_translation != (0., 0., 0.) or args.cat_yaw != 0.:
+        parser.error("CAT placement requires --cat-scene")
     if args.clutter_audit and (args.training_smoke or args.gui or args.family != "stair_p1"):
         parser.error("--clutter-audit is a separate headless stair-only diagnostic, not training/GUI")
     if args.execute and not args.accept_isaac_eula:
@@ -121,6 +140,8 @@ def main():
     kind = "training_smoke" if args.training_smoke else ("gui_demo" if args.gui else "evaluation")
     if args.clutter_audit:
         kind = "clutter_audit"
+    if args.cat_scene:
+        kind = "cat_audit"
     run = ROOT / "runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ") + "_" + args.family + "_" + kind)
     run.mkdir(parents=True, exist_ok=False)
     data = prepare_data(manifest, args.family, run)
@@ -133,7 +154,8 @@ def main():
         command = training_command(run, scene_overrides(run, data, scene["stem"], args.num_envs))
     else:
         command = evaluation_command(run, data, scene["stem"], args.num_envs,
-                                     gui=args.gui, clutter_audit=args.clutter_audit)
+                                     gui=args.gui, clutter_audit=args.clutter_audit, cat_scene=args.cat_scene,
+                                     cat_translation=args.cat_translation, cat_yaw=args.cat_yaw)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -194,6 +216,16 @@ def main():
                 report = audit_training(run)
                 record["training_audit"] = report
                 outputs_valid = report["passed"]
+            elif args.cat_scene:
+                from evaluation_audit import finite_nested
+                report = json.loads((run / "cat_audit.json").read_text())
+                record["cat_audit_summary"] = {key: report[key] for key in (
+                    "preflight_accepted", "reference", "min_clearance_by_link_m",
+                    "peak_CAT_normal_force_by_link_N", "completed_envs", "failure_terminated_envs")}
+                outputs_valid = (report["valid_diagnostic_run"] and report["preflight_accepted"]
+                                 and report["rollout_completed_without_failure"] and finite_nested(report)
+                                 and "Successfully loaded policy state dict" in (run / "process.log").read_text())
+                record["note"] = "Mesh/reference integration only; no terrain support or avoidance-training certification"
             elif args.clutter_audit:
                 from evaluation_audit import finite_nested
                 report = json.loads((run / "clearance_audit.json").read_text())

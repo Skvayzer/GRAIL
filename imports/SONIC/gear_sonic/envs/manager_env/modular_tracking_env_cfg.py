@@ -1536,6 +1536,12 @@ class ModularTrackingEnvCfg(ManagerBasedRLEnvCfg):
         if config.get("research_clutter"):
             from gear_sonic.research.isaac_clutter import attach_clutter
             attach_clutter(self.scene, config["research_clutter"], history_length=self.decimation)
+        if config.get("research_cat_scene"):
+            if config.get("research_clutter"):
+                raise ValueError("Choose CAT mesh or primitive diagnostics, not both")
+            from gear_sonic.research.isaac_clutter import attach_cat
+            attach_cat(self.scene, config["research_cat_scene"], config["research_cat_translation"],
+                       config["research_cat_yaw"], history_length=self.decimation)
 
     def _setup_from_hydra(
         self,

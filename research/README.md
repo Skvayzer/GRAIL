@@ -38,6 +38,8 @@ The verified four-sample baseline and two-update training smoke results are in
 Geometry contracts and outstanding gates are in [`M1_GEOMETRY.md`](M1_GEOMETRY.md).
 The actual CAT clutter-generator reuse and Isaac USD export are documented in
 [`CAT_SCENES.md`](CAT_SCENES.md).
+The explicit mesh placement, sampled-reference rejection and GRAIL diagnostic
+rollout are documented in [`CAT_GRAIL_INTEGRATION.md`](CAT_GRAIL_INTEGRATION.md).
 
 ## Desktop commands (from repository root)
 

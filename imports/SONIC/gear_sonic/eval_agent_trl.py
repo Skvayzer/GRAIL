@@ -613,6 +613,9 @@ def main(override_config: omegaconf.OmegaConf):
         if config.get("research_clearance_output"):
             from gear_sonic.research.clearance_audit import ClearanceAudit
             clearance_audit = ClearanceAudit(env, config.research_clearance_output)
+        if config.get("research_cat_output"):
+            from gear_sonic.research.cat_audit import CatAudit
+            clearance_audit = CatAudit(env, config.research_cat_output)
 
         with torch.no_grad():
             while simulation_app.is_running():

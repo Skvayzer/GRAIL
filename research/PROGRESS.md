@@ -1,5 +1,36 @@
 # Progress
 
+## 2026-09-11 — CAT/GRAIL reference and physical-mesh integration
+
+- Added explicit CAT-to-terrain translation/yaw, per-environment physical mesh
+  spawning, rotated voxel-field queries, and strict unknown masks. No actor,
+  observation layout or reward changes. No robot access or new training.
+- Added Warp signed-distance queries to the exact closed CAT triangle mesh,
+  conservative imported-G1 cover checking at every stored reference frame, and
+  a 3 cm minimum-gap rejection gate before the policy rollout. Stored reference
+  sweeps are checksummed and reusable for offline candidate-placement checks.
+- 37 unit tests pass, including CPU/CUDA mesh-distance parity, vector rotation,
+  unknown handling, limb-specific rejection, source tamper rejection, and opt-in
+  launch configuration. Equal-distance surface normals can differ at medial
+  axes; tests retain distance parity and test normals only where unique.
+- Development run `20260911T144115_853042Z_stair_p1_cat_audit`: original stair
+  reference plus random CAT clutter translated 3 m sideways, two environments,
+  498 sampled batches, 104 probes, no measured CAT contact. Minimum actual gap
+  2.801 m. The CAT field is correctly invalid there (0% coverage), not free.
+- Deliberately conflicting combined clutter at translation (-1,0,1): runtime
+  `20260911T144242_845662Z_stair_p1_cat_audit` refused before any policy-loop
+  steps; 426/499 reference frames flagged, minimum sphere gap -0.167 m. Offline
+  `20260911T144246_233341Z_cat_reference_check` reproduced the rejection.
+- A wider original CAT `side-hurdle2` passage (no geometry edits), yaw pi/2 and
+  translation (0,-1,0), passed the reference screen: minimum gap 0.0974 m. The
+  two-environment physical run `20260911T144407_165784Z_stair_p1_cat_audit`
+  completed 498 sampled batches, minimum actual gap 0.0948 m, zero measured CAT
+  contact. Field coverage of reference probes was 74.46%, not silently extended
+  above CAT's fixed-height volume. This is not learned obstacle avoidance.
+- Added explicit failure-versus-timeout outcome reporting after those runs;
+  clean-commit confirmation follows. Documentation and remaining support,
+  reference/task-direction and terminal-contact gates: `CAT_GRAIL_INTEGRATION.md`.
+
 ## 2026-09-11 — interactive CAT clutter gallery
 
 - Generated fresh scenes with unchanged pinned CAT code: random seed 42,

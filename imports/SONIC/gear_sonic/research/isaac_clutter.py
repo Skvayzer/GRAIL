@@ -1,7 +1,7 @@
 """Isaac Lab adapters. Import only AFTER AppLauncher starts Kit."""
 import math
 
-from isaaclab.assets import RigidObjectCfg
+from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.sensors import ContactSensorCfg
 import isaaclab.sim as sim_utils
 
@@ -47,3 +47,20 @@ def attach_clutter(scene_cfg, layout, history_length=4):
             filter_prim_paths_expr=["{ENV_REGEX_NS}/Robot/"+link for link in links],
             history_length=history_length, update_period=0.0,
         ))
+
+
+def attach_cat(scene_cfg, directory, translation, yaw, history_length=4):
+    from .cat_geometry import Placement, verify_scene_files
+    from pathlib import Path
+    directory = Path(directory).resolve()
+    verify_scene_files(directory)
+    placement = Placement(tuple(translation), yaw)
+    scene_cfg.research_cat = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/ResearchCAT",
+        spawn=sim_utils.UsdFileCfg(usd_path=str(directory/"scene.usda")),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=placement.translation, rot=placement.quaternion))
+    for link in sorted({p.link for p in collision_probes()}):
+        setattr(scene_cfg, "research_cat_contact_"+link, ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/"+link,
+            filter_prim_paths_expr=["{ENV_REGEX_NS}/ResearchCAT/Obstacles"],
+            history_length=history_length, update_period=0.0))
