@@ -1,5 +1,10 @@
 # CAT clutter in the GRAIL environment — diagnostic stage
 
+For new terrain/clutter combinations, use the extended `--layout-audit` check
+in [SCENE_VALIDATION.md](SCENE_VALIDATION.md): live terrain pose, support graph,
+passage, burial/floating review and independent physics rays. The original CAT
+check below remains available, but by itself does not validate terrain support.
+
 Simulation only. No robot or ROS access. This is **not** avoidance training or
 goal-conditioned navigation. The released GRAIL actor, observation layout and
 reward configuration remain unchanged; it still follows its paired reference.

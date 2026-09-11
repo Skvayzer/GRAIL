@@ -1,5 +1,47 @@
 # Progress
 
+## 2026-09-11 — combined terrain/support/passage validation
+
+- Stopped the user's repeating stair/CAT viewer; no GUI was left running.
+- Added exact enabled-collider extraction at the live terrain rigid-body pose,
+  preserving uniform scale and rejecting units, mirroring, unsupported geometry
+  and moving terrain/reference mismatches. The released stair mesh has 40,000
+  triangles and is open; support uses rays, not a fabricated signed volume.
+- Added upward support/patch screening, bounded step/stride graph edges with
+  intermediate support/trunk checks, endpoint projection bounds, existing
+  sampled whole-body reference clearance, and buried/floating component review.
+  New CLI: `baseline.py --cat-scene ... --layout-audit`; offline cached
+  candidate checker: `research/layout_audit.py`. See `SCENE_VALIDATION.md`.
+- The initial adjacent-cell graph incorrectly disconnected tread patches across
+  riser-edge bands. Corrected it to bound stride and check intermediate transit
+  separately from stance-patch validity. Tests reject holes, cliffs, diagonal
+  corner cutting, sealed corridors and a visible-but-too-narrow 0.30 m opening.
+- PhysX callback tests exposed a typed `RaycastHit` API (not the dictionary used
+  by `raycast_closest`). More importantly, world-space CPU queries missed the
+  GPU-positioned stair: CPU pose remained (2,0,0)/identity while the live GPU
+  pose was (0,0,0.6291) with its paired rotation. A physics-only warmup/reset
+  did not fix this and was removed. NVIDIA documents this Direct GPU API
+  limitation. Reconcile the two ray frames against the same cooked collider;
+  static ground is queried separately. No pose, policy input or extra step is
+  changed in the final implementation. Intermediate rejected runs are retained.
+- Development run `20260911T150945_632435Z_stair_p1_cat_audit` passed: all 96
+  PhysX/cooked-geometry rays (30 hitting terrain above ground) agree within
+  0.0000117 m. Support graph finds a 2.6105 m route with 12 nodes; all reference
+  pelvis samples have support within the declared height bounds. These are
+  geometric screens, not foot-contact/balance or continuous-path certification.
+- Its unchanged-policy rollout finished: 498 sampled batches, no failure
+  termination, minimum CAT cover gap 0.0935 m, measured CAT normal force 0 N.
+  Exit 0 and output audit passed. Offline conflicting overhead placement
+  `20260911T150536_192407Z_layout_check` rejects 426/499 reference frames.
+- The approved passage has 13.84% of occupied voxel centres wholly below the
+  terrain support envelope under the diagnostic tolerance, and no floating base
+  columns. This is flagged for placement review; no hurdle difficulty credit or
+  silent geometry correction is applied. `avoidance_training_ready` stays false.
+- 52 unit tests pass, including CPU/CUDA ray parity, live/authored/CPU query
+  rotations, scale retention, inverted normals and gap rejection. Environment
+  audit reports no unexpected dependency conflicts. No new dependencies,
+  robot connections, ROS changes, policy training or real actuation.
+
 ## 2026-09-11 — live stairs with CAT clutter
 
 - Enabled `baseline.py --gui --cat-scene ...` for a repeating desktop demo.

@@ -616,6 +616,11 @@ def main(override_config: omegaconf.OmegaConf):
         if config.get("research_cat_output"):
             from gear_sonic.research.cat_audit import CatAudit
             clearance_audit = CatAudit(env, config.research_cat_output)
+        if config.get("research_layout_output"):
+            if not config.get("research_cat_output"):
+                raise ValueError("Combined layout screening requires CAT reference preflight")
+            from gear_sonic.research.scene_audit import run_live
+            run_live(env, clearance_audit, config.research_layout_output)
         cat_demo = None
         if config.get("research_cat_gui_output"):
             if args_cli.headless or not config.get("research_cat_output"):

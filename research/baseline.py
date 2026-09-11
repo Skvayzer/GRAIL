@@ -65,7 +65,7 @@ def scene_overrides(run, data, stem, num_envs):
 
 
 def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
-                       cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0.):
+                       cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False):
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
@@ -85,6 +85,11 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
         overrides.update({"manager_env.config.research_cat_scene": str(cat_scene),
                           "manager_env.config.research_cat_translation": list(cat_translation),
                           "manager_env.config.research_cat_yaw": cat_yaw})
+    if layout_audit:
+        if cat_scene is None or num_envs != 1:
+            raise ValueError("Layout audit requires CAT and one environment")
+        overrides["research_layout_output"] = str(run / "layout_audit.json")
+        overrides["manager_env.config.research_layout_audit"] = True
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -102,6 +107,8 @@ def main():
     parser.add_argument("--clutter-audit", action="store_true",
                         help="One bounded stair reference with physical side clutter; no training or avoidance claim")
     parser.add_argument("--cat-scene", type=Path, help="Opt-in CAT mesh/reference audit; no new learning")
+    parser.add_argument("--layout-audit", action="store_true",
+                        help="Check terrain support, passage and physical ray parity before CAT rollout; one environment")
     parser.add_argument("--cat-translation", type=float, nargs=3, default=(0., 0., 0.), metavar=("X", "Y", "Z"))
     parser.add_argument("--cat-yaw", type=float, default=0., help="CAT-to-terrain yaw in radians")
     parser.add_argument("--training-smoke", action="store_true",
@@ -114,6 +121,8 @@ def main():
         parser.error("--timeout must be positive")
     if args.gui and args.training_smoke:
         parser.error("--gui is for the released-policy demo, not training")
+    if args.layout_audit and (not args.cat_scene or args.num_envs != 1):
+        parser.error("--layout-audit needs --cat-scene and --num-envs 1")
     if args.cat_scene:
         if args.training_smoke or args.clutter_audit or args.num_envs > 4:
             parser.error("CAT integration supports at most four environments; no training or primitive audit")
@@ -157,7 +166,8 @@ def main():
     else:
         command = evaluation_command(run, data, scene["stem"], args.num_envs,
                                      gui=args.gui, clutter_audit=args.clutter_audit, cat_scene=args.cat_scene,
-                                     cat_translation=args.cat_translation, cat_yaw=args.cat_yaw)
+                                     cat_translation=args.cat_translation, cat_yaw=args.cat_yaw,
+                                     layout_audit=args.layout_audit)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -228,6 +238,10 @@ def main():
                                  and report["rollout_completed_without_failure"] and finite_nested(report)
                                  and "Successfully loaded policy state dict" in (run / "process.log").read_text())
                 record["note"] = "First-episode mesh/reference audit only; no terrain support or avoidance-training certification"
+                if args.layout_audit:
+                    layout = json.loads((run / "layout_audit.json").read_text())
+                    record["layout_audit_passed"] = layout["accepted_for_reference_diagnostic"]
+                    outputs_valid = outputs_valid and record["layout_audit_passed"] and finite_nested(layout)
                 if args.gui:
                     record["viewer_ready"] = (run / "viewer_ready.json").is_file()
                     outputs_valid = outputs_valid and record["viewer_ready"]

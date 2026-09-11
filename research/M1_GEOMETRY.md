@@ -3,6 +3,9 @@
 The newer CAT mesh/field placement and full-reference diagnostic integration
 are in [CAT_GRAIL_INTEGRATION.md](CAT_GRAIL_INTEGRATION.md). These additions do
 not remove the outstanding terrain/support/terminal-contact gates below.
+The later [SCENE_VALIDATION.md](SCENE_VALIDATION.md) adds live triangle-surface
+support extraction and conservative passage screening; it does not complete
+articulated terrain contact or avoidance-training validation.
 
 Desktop simulation only. No new policy training, deployed observation interface,
 robot SDK, ROS changes or actuation. The original terrain checkpoint stays
@@ -84,8 +87,8 @@ generator is now reused with an Isaac exporter: see [CAT_SCENES.md](CAT_SCENES.m
   confirmed the self-contact instrumentation and physical pose-consistency gates.
   It measured up to 17.94 N between the right wrist/hip collision links. Do not
   mistake a passing diagnostic run for a collision-free walking benchmark.
-- Not implemented yet: arbitrary terrain mesh SDF/
-  support extraction, full articulated/payload/contact-permission validation,
+- Not implemented yet: arbitrary signed terrain-volume fields and multi-layer
+  support, full articulated/payload/contact-permission validation,
   calibrated self-pair exclusions and whole-mesh coverage, sensor realism, or
   the full guidance-field parity/goal-conditioned policy.
 - **Do not enable new avoidance rewards or begin M2 based on these partial gates.**
