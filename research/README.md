@@ -52,6 +52,12 @@ use `artifacts.py prepare`. The default baseline command stages a run but does
 not launch physics; `--execute` starts a bounded desktop evaluation. Results and
 logs go to `research/runs/`. A process exit code alone is not a passed task.
 
+First launch requires the user's acceptance of the [NVIDIA Omniverse
+license](https://docs.omniverse.nvidia.com/platform/latest/common/NVIDIA_Omniverse_License_Agreement.html).
+Read it and, only if you agree, add `--accept-isaac-eula` to the `--execute`
+command. Acceptance is never enabled automatically by these scripts. The current
+installation has reached this gate but has not completed a physics rollout.
+
 The environment snapshot is from an existing compatible desktop installation,
 not a claim of matching every version in NVIDIA's installer. Core versions and
 package differences must be recorded in evaluation reports. The bootstrap uses

@@ -24,3 +24,21 @@
   existing reference Python read-only; it does not validate the new environment.
 - Physical policy restoration and training are still pending. No task-success
   or terrain-retention result has been established.
+
+### Isolated installation finished; user license decision required
+
+- Installed the separate `.venv` and a separately cloned Isaac Lab v2.3.2.
+- Verified imports resolve to this fork/its dependency checkout, not the existing
+  desktop SONIC checkout. PyTorch CUDA arithmetic passed on the RTX 5090.
+- First physics attempt stopped before simulator startup at the Omniverse EULA
+  prompt (`EOF when reading a line`). License was **not accepted** by the agent.
+  The launcher now checks this gate explicitly before staging/starting a run.
+- Added process-group cleanup for timed-out/interrupted simulation evaluations.
+- Remaining installation audit: the inherited package snapshot has seven metadata
+  conflicts (packaging, typing-extensions, NumPy, click, psutil, Starlette).
+  These must be reconciled/documented before declaring the runtime validated.
+  In particular GRAIL/SONIC uses NumPy 1.26.4 while Isaac Sim metadata pins 1.26.0;
+  do not blindly upgrade NumPy or modify the existing environment to resolve it.
+- **Next:** obtain user EULA decision, reconcile research-environment dependency
+  pins, rerun the bounded stair evaluation, then a tiny PPO smoke test. No
+  simulator rollout, training result, or autonomous navigation is claimed yet.

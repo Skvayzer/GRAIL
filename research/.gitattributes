@@ -1,0 +1,2 @@
+# Small hand-authored test geometry belongs in ordinary Git, not LFS.
+assets/*.usda -filter diff merge text

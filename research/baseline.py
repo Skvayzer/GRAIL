@@ -8,9 +8,11 @@ No navigation, ROS, robot connection, deployment wrapper or motor API is used.
 import argparse
 from datetime import datetime, timezone
 import json
+import importlib.metadata
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 
@@ -74,8 +76,18 @@ def main():
     parser.add_argument("--family", choices=["stair_p1", "curb", "slope", "sitting"], default="stair_p1")
     parser.add_argument("--num-envs", type=int, choices=range(1, 17), default=1)
     parser.add_argument("--execute", action="store_true", help="Run desktop physics, never robot control")
+    parser.add_argument("--accept-isaac-eula", action="store_true",
+                        help="Explicit user acceptance of the NVIDIA Omniverse license; never enabled by default")
     parser.add_argument("--timeout", type=int, default=600)
     args = parser.parse_args()
+    if args.execute and not args.accept_isaac_eula:
+        package = importlib.metadata.distribution("isaacsim")
+        accepted = Path(package.locate_file("isaacsim/kit/EULA_ACCEPTED"))
+        if not accepted.is_file() and os.environ.get("OMNI_KIT_ACCEPT_EULA", "").lower() != "yes":
+            raise SystemExit("Isaac Sim requires your license acceptance before simulation. Read "
+                             "https://docs.omniverse.nvidia.com/platform/latest/common/"
+                             "NVIDIA_Omniverse_License_Agreement.html and, only if you agree, "
+                             "pass --accept-isaac-eula. No simulator was started.")
     manifest = json.loads((ROOT / "data_manifest.json").read_text())
     if manifest["revision"] != PROVENANCE["dataset_revision"]:
         raise ValueError("Unexpected dataset revision")
@@ -104,16 +116,30 @@ def main():
     env = os.environ.copy()
     env.update(WANDB_MODE="offline", WANDB_DISABLED="true", HF_HUB_OFFLINE="1",
                TRANSFORMERS_OFFLINE="1", PYTHONUNBUFFERED="1", OMP_NUM_THREADS="4")
+    if args.accept_isaac_eula:
+        env["OMNI_KIT_ACCEPT_EULA"] = "Yes"
     record["status"] = "running"
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     try:
         with (run / "process.log").open("w") as log:
-            completed = subprocess.run(command, cwd=REPO_ROOT / "imports/SONIC", env=env,
-                                       stdout=log, stderr=subprocess.STDOUT, timeout=args.timeout)
-        record["exit_code"] = completed.returncode
-        record["status"] = "process_completed" if completed.returncode == 0 else "failed"
+            process = subprocess.Popen(command, cwd=REPO_ROOT / "imports/SONIC", env=env,
+                                       stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            try:
+                returncode = process.wait(timeout=args.timeout)
+            except (subprocess.TimeoutExpired, KeyboardInterrupt):
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+                raise
+        record["exit_code"] = returncode
+        record["status"] = "process_completed" if returncode == 0 else "failed"
     except subprocess.TimeoutExpired:
         record.update(status="timed_out", exit_code=124)
+    except KeyboardInterrupt:
+        record.update(status="interrupted", exit_code=130)
     record["metrics_present"] = (run / "metrics/metrics_eval.json").is_file()
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     print(json.dumps({"status": record["status"], "exit_code": record["exit_code"],
