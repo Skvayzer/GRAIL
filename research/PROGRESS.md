@@ -27,6 +27,14 @@
 - 84 tests pass (12 new, including adversarial saved-data checks), with CPU/CUDA
   parity exercised. Environment check has no new conflicts. See
   `CONTACT_FIXTURES.md` for exact commands, scope and remaining gates.
+- Clean `8b870fa` confirmation: `20260911T175656_637177Z_contact_fixtures`
+  reproduced all nine passing cases / 407 records with `dirty=false` and saved
+  artifact verification. Review run `20260911T175658_037134Z_contact_review`
+  reproduced interval counts. Stair regression
+  `20260911T175754_038972Z_stair_p1_cat_audit` exited 0 with valid outputs and
+  `dirty=false`: 1,996 physics samples, identical sole regions/classifications
+  and identical contact NPZ checksum to the prior clean replay. All test
+  simulators exited; no new training or robot action.
 
 ## 2026-09-11 — articulated contact capture before reset
 

@@ -83,6 +83,23 @@ The sandbox could not enumerate the GPU in one attempt; that process exited
 before physics. The subsequent authorized headless run used the existing GPU
 and packages. No driver/dependency change was made.
 
+### Clean-commit confirmation
+
+At revision `8b870fa0859e120b520285e59c89a3a3f7746bb2`, with `dirty=false`:
+
+- `20260911T175656_637177Z_contact_fixtures` reproduced all nine passing cases,
+  407 force-bearing records and the independent saved-artifact verification.
+- `20260911T175658_037134Z_contact_review` reproduced the interval counts above.
+- `20260911T175754_038972Z_stair_p1_cat_audit` completed the released stair
+  reference, exit 0 / valid outputs. It retained all 1,996 physics samples,
+  including four terminal samples. Sole regions and classification counts match
+  the earlier clean replay exactly; even the saved contact NPZ checksum is
+  identical. Sharing the sole helper did not change this regression result.
+
+84 unit tests passed with CPU/CUDA parity exercised. All launched headless
+fixtures and the final stair replay exited; no simulator was left running by
+these tests. This is one deterministic replay, not general behavioural parity.
+
 ## Reproduce and inspect
 
 From the repository root, using the already accepted Isaac licence:
