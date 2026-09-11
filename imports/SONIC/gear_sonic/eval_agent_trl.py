@@ -645,6 +645,16 @@ def main(override_config: omegaconf.OmegaConf):
             observation_shadow = ObservationShadow(env, clearance_audit, model.policy,
                                                     config.research_observation_shadow_output)
 
+        avoidance_task = None
+        if config.get("research_avoidance_task", False):
+            if not config.get("research_residual_preflight_output") or hasattr(env.env, "research_avoidance"):
+                raise ValueError("Avoidance profile requires exclusive no-update preflight context")
+            from gear_sonic.research.avoidance_task import AvoidanceTask
+            avoidance_task = AvoidanceTask(env, clearance_audit, Path(config.research_layout_output).parent)
+            env.env.research_avoidance = avoidance_task
+            clearance_audit.report.update(rewards_changed=True, terminations_changed=True,
+                task_profile="reference-conditioned posture avoidance; frozen actions; no updates")
+
         residual_audit = None
         if config.get("research_residual_preflight_output"):
             if (not config.get("research_layout_output") or not run_once or not args_cli.headless
@@ -681,6 +691,8 @@ def main(override_config: omegaconf.OmegaConf):
                     observation_shadow.sample(policy_model.obs_dict_buffer, actor_state["actions"])
                 if residual_audit is not None:
                     residual_audit.sample(policy_model.obs_dict_buffer, actor_state["actions"])
+                if avoidance_task is not None:
+                    avoidance_task.before_step()
                 results = env.step(actor_state)
                 obs_dict, rewards, dones, infos = (
                     results[0],
@@ -692,6 +704,8 @@ def main(override_config: omegaconf.OmegaConf):
                     observation_shadow.outcome(dones)
                 if residual_audit is not None:
                     residual_audit.outcome(dones, rewards)
+                if avoidance_task is not None:
+                    avoidance_task.outcome(dones)
                 if contact_audit is not None:
                     contact_audit.policy_step(dones)
                 if clearance_audit is not None:
@@ -732,6 +746,9 @@ def main(override_config: omegaconf.OmegaConf):
                     remaining = env.env.step_dt - (time.perf_counter() - frame_start)
                     if remaining > 0:
                         time.sleep(remaining)
+        if avoidance_task is not None:
+            avoidance_task.save()
+            del env.env.research_avoidance
         if clearance_audit is not None:
             clearance_audit.finish()
         if cat_demo is not None:

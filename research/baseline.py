@@ -66,7 +66,9 @@ def scene_overrides(run, data, stem, num_envs):
 
 def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
                        cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False, contact_audit=False,
-                       observation_shadow=False, record_video=False, residual_preflight=False):
+                       observation_shadow=False, record_video=False, residual_preflight=False, avoidance_task=False):
+    if avoidance_task and not residual_preflight:
+        raise ValueError("Avoidance profile currently requires the no-update residual preflight")
     if residual_preflight and (not layout_audit or cat_scene is None or gui or record_video
                               or not 1 <= num_envs <= 4 or contact_audit or observation_shadow):
         raise ValueError("Residual preflight needs headless CAT/layout, 1..4 environments, and no other recorder")
@@ -97,6 +99,10 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
     if residual_preflight:
         overrides["research_residual_preflight_output"] = str(run / "residual_preflight.json")
         overrides["research_layout_replicated"] = True
+    if avoidance_task:
+        from gear_sonic.research.avoidance_config import avoidance_overrides
+        overrides.update(avoidance_overrides())
+        overrides["research_avoidance_task"] = True
     if contact_audit:
         if not layout_audit or gui:
             raise ValueError("Contact audit requires headless single-environment layout audit")
@@ -158,6 +164,8 @@ def main():
                         help="Record oracle obstacle packets and zero-residual frozen-clone parity; NEVER apply adapter actions")
     parser.add_argument("--residual-preflight", action="store_true",
                         help="Zero-update learner state/timeout/reset audit, 1..4 headless environments; original actions only")
+    parser.add_argument("--avoidance-task", action="store_true",
+                        help="Opt-in M2 reward/termination profile, currently requires no-update --residual-preflight")
     parser.add_argument("--cat-translation", type=float, nargs=3, default=(0., 0., 0.), metavar=("X", "Y", "Z"))
     parser.add_argument("--cat-yaw", type=float, default=0., help="CAT-to-terrain yaw in radians")
     parser.add_argument("--training-smoke", action="store_true",
@@ -168,6 +176,8 @@ def main():
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+    if args.avoidance_task and not args.residual_preflight:
+        parser.error("--avoidance-task requires the no-update --residual-preflight")
     if args.gui and args.training_smoke:
         parser.error("--gui is for the released-policy demo, not training")
     if args.record_video and (args.gui or args.training_smoke or args.num_envs != 1):
@@ -227,9 +237,9 @@ def main():
                                      cat_translation=args.cat_translation, cat_yaw=args.cat_yaw,
                                      layout_audit=args.layout_audit, contact_audit=args.contact_audit,
                                      observation_shadow=args.observation_shadow, record_video=args.record_video,
-                                     residual_preflight=args.residual_preflight)
+                                     residual_preflight=args.residual_preflight, avoidance_task=args.avoidance_task)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
-              "kind": kind,
+              "kind": kind, "avoidance_task": args.avoidance_task,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
               "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True)),
               "dataset_revision": manifest["revision"], "command": command,
@@ -317,6 +327,10 @@ def main():
                     from residual_results import audit_runtime
                     record["residual_runtime_audit"] = audit_runtime(run)
                     outputs_valid = outputs_valid and record["residual_runtime_audit"]["passed"]
+                if args.avoidance_task:
+                    from avoidance_results import audit_task
+                    record["avoidance_task_audit"] = audit_task(run)
+                    outputs_valid = outputs_valid and record["avoidance_task_audit"]["passed"]
                 if args.gui:
                     record["viewer_ready"] = (run / "viewer_ready.json").is_file()
                     outputs_valid = outputs_valid and record["viewer_ready"]

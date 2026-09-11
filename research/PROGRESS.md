@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-09-12 — opt-in avoidance task and rejected posture challenge screen
+
+- Implemented a distinct M2 posture-avoidance reward/termination overlay, leaving
+  original retention configuration unchanged. Upper-body tracking is relaxed;
+  foot placement, root/balance, action smoothness and joint limits remain. CAT
+  contact failure includes feet; no heuristic terrain-contact permissions added.
+- Counterfactual tests cover per-link clearance, physical contact thresholds,
+  root-only telescoping progress, true world-foot error and failure event units.
+  Actual one-/four-environment frozen-action runs each completed 499 steps with
+  clean timeouts and unchanged weights; independent report checks pass. Exact
+  run IDs and bounds are in `TRAINING_PREPARATION.md`. This is not training or
+  evidence of learned avoidance; altered-task runs are not claimed numerically
+  identical to every older frozen rollout.
+- Reconstructed the original reference using pinned upstream motion/MJCF with
+  exact agreement to all 499 imported probe frames. Added deterministic posture
+  blending, named scalar DOF mapping (excluding the upstream free root), exact
+  capsule segment-distance checks and a bounded candidate placement screen.
+- The fixed 108-placement sweep yielded one actual arm-intersection candidate.
+  All 18 follow-up posture trials remained rejected: shifted geometry failed
+  role/terrain placement, and nonlocal capsule self-pair interpretation needs
+  additional work. Reports preserve rejection, not an invented feasible solution.
+- All 174 tests passed with CUDA available. No optimizer steps or robot access.
+
+
 ## 2026-09-12 — zero-update Isaac learner state and terminal/reset integration
 
 - Added a privileged 2,221D teacher state with all 29 joints, explicit ten-step

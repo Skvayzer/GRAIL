@@ -36,9 +36,10 @@ not capabilities to claim from the first training run.
 - [ ] Training-runtime handling of invalid geometry/falling states, asynchronous
   live resets and the actual stochastic action/collection path. The current
   preflight rejects invalid packets and does not supply learner actions.
-- [ ] Avoidance reward/termination configuration. Exact world-frame foot or
-  anchor tracking must not forbid intended detours. Do not treat provisional
-  stair contact-phase labels as validated reward targets.
+- [x] Opt-in M2 posture-avoidance reward/termination configuration, verified
+  with frozen actions in one and four environments. Relaxes upper-body tracking
+  while preserving reference footholds; this does not yet allow large detours
+  or deep crouching. Contact-phase heuristics are not used as permissions.
 - [ ] Explicit training approval/configuration gate, defaulting to no updates.
 - [x] Three actual MP4 review demos, provenance and laptop-copy instructions
   (`REVIEW_DEMOS.md`). These show the integration control, not a trained avoider.
@@ -95,3 +96,31 @@ optimizer step. The separate `--residual-preflight` now integrates privileged
 state sampling and pre-reset capture with the frozen evaluation loop, without
 using learner actions. Its 1-/4-environment results are in `RESIDUAL_RUNTIME.md`.
 An end-to-end CAT trainer still requires the remaining gates above.
+
+## Posture-avoidance task and current scene status
+
+`--avoidance-task` currently requires `--residual-preflight`: it is a no-update,
+frozen-action test, not a training launcher. The overlay removes five-point
+upper-body tracking, restricts body tracking to lower-body links and retains
+world-foot tracking, root/balance terms, action smoothness and joint limits.
+CAT signed clearance is penalized per link (not per number of probe spheres),
+with separate physical CAT-contact penalties and failure termination, including
+feet against CAT. Progress uses the pelvis, not hands. A new true world-frame
+foot guard is distinct from the upstream anchor-relative `ee_body_pos` guard.
+Thresholds are provisional simulation task choices, not hardware limits.
+
+Frozen control runs `20260911T202855_132101Z_stair_p1_cat_audit` (one environment)
+and `20260911T203052_120134Z_stair_p1_cat_audit` (four) each completed 499 steps,
+with clean timeouts, no failures, unchanged learner/backbone weights and exact
+zero-residual action parity. Minimum sampled CAT gaps were 0.353909 / 0.367625 m;
+maximum world-foot errors 0.079383 / 0.064237 m; measured CAT contact forces zero.
+These runs validate the task on a nonblocking control, not learned avoidance.
+
+Offline reconstruction matches all imported reference probe positions exactly.
+A fixed 108-placement sweep found one actual arm-intersection candidate with
+protected lower-body clearance, but the subsequent 18-posture search admitted
+**zero** witnesses. The shifted CAT layout failed role/terrain placement checks;
+nonlocal capsule self-clearance also needs interpretation against actual collision
+filtering. No failing scene is admitted as a training example. Reports are in
+`20260911T203500_861064Z_posture_clutter_screen` and
+`20260911T204125_457962Z_posture_witness`. Kinematic checks do not establish balance.

@@ -46,7 +46,8 @@ class ResidualRuntimeAudit:
             base_backbone_sha256=self.backbone_hash, learner_sha256=self.learner_hash,
             capture="reward_manager.compute return, before recorder/reset/command advancement",
             timeout_bootstrap="final physical history and +1 clamped reference query; never post-reset state",
-            physics_steps_added=0, original_rewards_changed=False, original_observations_changed=False)
+            physics_steps_added=0, original_rewards_changed=hasattr(self.env, "research_avoidance"),
+            original_terminations_changed=hasattr(self.env, "research_avoidance"), original_observations_changed=False)
 
     def __enter__(self):
         self.tap.__enter__()
