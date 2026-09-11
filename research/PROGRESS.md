@@ -1,5 +1,58 @@
 # Progress
 
+## 2026-09-12 — integrated M2 updates/resume and supervised overnight preparation
+
+- User approved the reviewed environments and explicitly requested overnight
+  simulation training, with a two-hour maximum for unresolved setup/debugging.
+  W&B identity verified as `skvayzer`; actual runs sync to `skvayzer/grail-cat`.
+  No robot connection, mode change, ROS or SDK actuation was performed.
+- Added a prepare-only-by-default launcher with separate execution/optimizer
+  flags, exact reviewed challenge/placement/geometry admission, arm-only reset
+  integration, stochastic on-policy collection, deterministic evaluation,
+  PPO updates, W&B metrics, checkpoint resume and read-only result auditing.
+  Original reference arm tables are not replaced by the geometric witness.
+- Collection run `20260911T213906_169796Z_m2_collect`: 512 transitions, one
+  timeout, zero failures/updates, unchanged backbone/learner, saved checkpoint.
+- The first optimizer attempt correctly stopped on inconsistent likelihoods
+  after its mean head became nonzero. Fixed learner TF32/batch-size numerical
+  drift locally while restoring the frozen actor's precision settings; kept
+  the strict guard and added a CUDA nonzero-head regression test. Pilot launch
+  rate reduced to 3e-5 after excessive early KL stopping at 3e-4.
+- Training smoke `20260911T214502_102941Z_m2_train`: 24 horizons ×32 steps ×4
+  environments = 3,072 transitions; **177 real Adam steps**, four timeouts,
+  zero failures. Independent saved-file audit passes. Learner changed; frozen
+  backbone unchanged. Actual weights, Adam moments/counters and RNG roundtrip.
+  W&B: https://wandb.ai/skvayzer/grail-cat/runs/h8h6iorn
+- Fresh-process resume `20260911T214652_229891Z_m2_train`: 256 transitions,
+  eight additional Adam steps (177→185), loaded state verified, unchanged
+  backbone. This resumes learner/optimizer/RNG, not PhysX episode state.
+- Stochastic validation collection `20260911T220033_204025Z_m2_collect`:
+  2,560 transitions, zero updates, four actual CAT-contact terminations.
+  Reset groups were `[0,1,3]` then `[2]`, independently of the initial batch
+  reset. Other environments kept collecting through each reset. Minimum cover
+  gap -0.00595m, peak CAT contact 69.75N; this is a reset-path test, not success.
+- Added explicit retention controls with learned adapter active and a real
+  CAT fixture outside the workspace. Fixed exact-surface extraction for planar
+  convex quad terrain faces; nonplanar/concave faces still reject and physical
+  ray parity remains mandatory. The released curb has a 0.2921m riser; its
+  geometric control graph uses 0.32m, with unchanged 0.20m for stair/slope.
+- Sitting is **excluded, not passed**. Its chair contact geometry violates the
+  standing/stepping support-graph model (supported-anchor fraction 0.5685).
+  It needs a separate seating/task support contract. No checks were relaxed
+  to call this a successful four-terrain whole-body retention benchmark.
+- 215 tests pass (including real CUDA math but no unit-test optimizer steps).
+  Added PID/start-time/boot-ID-safe detached job control, disk/stall/time
+  supervision, durable metrics, no-retry behavior, and automatic post-training
+  evaluation. No sudo/login/service settings changed. Verified logind's
+  existing `KillUserProcesses=false` policy for SSH-independent job lifetime.
+- Exported the exact reviewed pilot evidence as an 8.16MB, 22-file bundle,
+  with source hashes unchanged and safe path rebinding on a new checkout.
+  Generated evidence stays outside Git; commands and scope are in
+  `M2_TRAINING.md`. Initial integration commit: `8545417` (pushed).
+- Final locomotion suite and detached-job start are recorded in the next
+  handoff entry once verified. This is a small reference-conditioned pilot,
+  not demonstrated general obstacle avoidance or manipulation.
+
 ## 2026-09-12 — collision-screened challenge examples for human review
 
 - Added explicit v2 CAT role provenance: padding is a boundary condition, not

@@ -34,7 +34,8 @@ Large checkpoints/data are fetched by hash, never committed.
 Progress and actual test results are recorded in `PROGRESS.md`. Do not infer a
 completed milestone from the existence of a launcher or configuration.
 The verified four-sample baseline and two-update training smoke results are in
-[`M0_RESULTS.md`](M0_RESULTS.md). CAT obstacle-avoidance training is not implemented yet.
+[`M0_RESULTS.md`](M0_RESULTS.md). The integrated M2 residual trainer, verified
+update/resume path and overnight commands are in [`M2_TRAINING.md`](M2_TRAINING.md).
 Geometry contracts and outstanding gates are in [`M1_GEOMETRY.md`](M1_GEOMETRY.md).
 The actual CAT clutter-generator reuse and Isaac USD export are documented in
 [`CAT_SCENES.md`](CAT_SCENES.md).
@@ -61,8 +62,9 @@ independent connector checks and unchanged-action simulation confirmation.
 Laptop-friendly recordings and reproduction commands are in
 [`REVIEW_DEMOS.md`](REVIEW_DEMOS.md). Training preparation, including the new
 tensor-only residual actor/critic, PPO/GAE and learner checkpoint components,
-is tracked in [`TRAINING_PREPARATION.md`](TRAINING_PREPARATION.md). These are not
-yet an integrated avoidance trainer; actual training awaits the user's review.
+is tracked historically in [`TRAINING_PREPARATION.md`](TRAINING_PREPARATION.md).
+The user has now approved the environment review and overnight training;
+current operation and scope limits are in [`M2_TRAINING.md`](M2_TRAINING.md).
 The zero-update Isaac learner-state/reset integration and verified 1-/4-environment
 runs are documented in [`RESIDUAL_RUNTIME.md`](RESIDUAL_RUNTIME.md).
 

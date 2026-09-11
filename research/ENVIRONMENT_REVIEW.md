@@ -1,5 +1,9 @@
 # Environment review handoff — 2026-09-12
 
+Update: the user approved these scenes, then explicitly authorized overnight
+training. The following records the earlier visual-review handoff; current
+runtime admission, training and reset semantics are in [M2_TRAINING.md](M2_TRAINING.md).
+
 Training has NOT started. Stop for the user's environment review before
 continuing challenge integration. Visual approval is separate from approval
 to run optimizer updates; remaining engineering gates are listed below.

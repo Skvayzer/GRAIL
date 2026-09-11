@@ -13,7 +13,7 @@ from baseline import evaluation_command
 from gear_sonic.research.cat_geometry import Placement
 from gear_sonic.research.layout_validation import LayoutLimits, layout_grid, obstacle_embedding, support_path
 from gear_sonic.research.mesh_distance import ClosedMeshDistance
-from gear_sonic.research.terrain_snapshot import remap_rays, rigid_collision_mesh, rotation_wxyz
+from gear_sonic.research.terrain_snapshot import remap_rays, rigid_collision_mesh, rotation_wxyz, collision_triangles
 from gear_sonic.research.terrain_surface import TerrainSurface
 
 
@@ -93,6 +93,36 @@ class SnapshotTests(unittest.TestCase):
         np.testing.assert_allclose(vertices, original*2 @ rotation_wxyz(quat).T + [1., 2., 3.], atol=1e-6)
         self.assertEqual(len(inventory), 1)
         self.assertEqual(faces.shape, (2, 3))
+
+    def test_only_convex_planar_quads_are_split_without_surface_changes(self):
+        vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
+        faces = collision_triangles(vertices, [4], [0, 1, 2, 3])
+        np.testing.assert_array_equal(faces, [[0, 1, 2], [0, 2, 3]])
+        normals = np.cross(vertices[faces[:, 1]]-vertices[faces[:, 0]],
+                           vertices[faces[:, 2]]-vertices[faces[:, 0]])
+        np.testing.assert_allclose(normals, [[0, 0, 1], [0, 0, 1]])
+        nonplanar = vertices.copy()
+        nonplanar[3, 2] = .1
+        with self.assertRaisesRegex(ValueError, "Nonplanar"):
+            collision_triangles(nonplanar, [4], [0, 1, 2, 3])
+        with self.assertRaisesRegex(ValueError, "Nonconvex"):
+            collision_triangles(vertices, [4], [0, 2, 1, 3])
+        with self.assertRaises(ValueError):
+            collision_triangles(vertices, [3], [0, 0, 1])
+
+    def test_usd_quad_terrain_retains_exact_live_pose(self):
+        stage = self.fixture()
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath("/Terrain/collision"))
+        vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
+        mesh.GetPointsAttr().Set(vertices)
+        mesh.GetFaceVertexCountsAttr().Set([4])
+        mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+        actual, faces, _ = rigid_collision_mesh(stage, "/Terrain", [1., 2., 3.], [1., 0., 0., 0.])
+        np.testing.assert_allclose(actual, vertices*2+[1, 2, 3], atol=1e-6)
+        np.testing.assert_array_equal(faces, [[0, 1, 2], [0, 2, 3]])
+        mesh.CreateHoleIndicesAttr([0])
+        with self.assertRaisesRegex(ValueError, "holes"):
+            rigid_collision_mesh(stage, "/Terrain", [1., 2., 3.], [1., 0., 0., 0.])
 
     def test_reject_convexification_and_wrong_units(self):
         stage = self.fixture()

@@ -17,6 +17,7 @@ from .residual_learning import ResidualActorCritic
 from .residual_simulator import SimulatorCollector
 from .runtime_observation import RuntimeObservation
 from .scene_audit import run_live
+from .layout_validation import LayoutLimits
 from .training_admission import ChallengeAdmission, ArmReset, digest
 
 
@@ -84,13 +85,18 @@ def run_training(wrapper, frozen_policy, plan_path):
         raise ValueError("Optimizer updates require a separate explicit approval flag")
     if plan["mode"] == "train" and plan["split"] != "development":
         raise ValueError("Validation scenes must never receive optimizer updates")
+    if plan.get("retention_family") and (plan["mode"] != "evaluate" or plan["split"] != "retention"):
+        raise ValueError("Retention controls and their graph bounds are evaluation-only")
     run = plan_path.parent
     frozen_policy.eval().requires_grad_(False)
     base_hash = state_hash(frozen_policy)
     challenge = (ChallengeAdmission(plan["witness"], plan["witness_sha256"], plan["case"])
                  if plan.get("witness") else None)
     cat = CatAudit(wrapper, run/"cat_audit.json", challenge=challenge)
-    run_live(wrapper, cat, run/"layout_audit.json", allow_replicated=True, challenge=challenge)
+    # The released curb reference traverses a measured 0.2921m riser. This
+    # per-family geometric control bound is not a learned/hardware step limit.
+    limits = LayoutLimits(max_step=.32) if plan.get("retention_family") == "curb" else LayoutLimits()
+    run_live(wrapper, cat, run/"layout_audit.json", allow_replicated=True, challenge=challenge, limits=limits)
     task = AvoidanceTask(wrapper, cat, run)
     if hasattr(wrapper.env, "research_avoidance"):
         raise ValueError("Another avoidance task is already attached")
@@ -153,6 +159,7 @@ def run_training(wrapper, frozen_policy, plan_path):
                         elapsed_s=time.monotonic()-started)
                     if update:
                         row["update"] = update
+                    row.update({"termination/"+k: v for k, v in runtime.termination_counts.items()})
                     report["metrics"].append(row)
                     with (run/"metrics.jsonl").open("a") as stream:
                         stream.write(json.dumps(row, allow_nan=False)+"\n")
@@ -186,6 +193,7 @@ def run_training(wrapper, frozen_policy, plan_path):
                 checkpoint_sha256=checkpoint_hash, checkpoint_roundtrip_verified=True,
                 optimizer_moments_roundtrip_verified=True,
                 simulator_steps=runtime.steps, failures=runtime.terminations, timeouts=runtime.timeouts,
+                termination_counts=runtime.termination_counts,
                 reset_calls=reset_hook.calls if reset_hook else 0,
                 reset_environment_ids=reset_hook.rows if reset_hook else [])
             task.report["diagnostic_scope"] = "last horizon only; all horizons summarized in metrics.jsonl"

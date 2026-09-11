@@ -1,7 +1,7 @@
 """Bounded M2 collection/update engine, with gradient-only updates by default.
 
-No Isaac startup, robot API, artifact downloads or automatic training. A future
-approved simulator launcher supplies observations and PRE-RESET final states.
+No Isaac startup, robot API, artifact downloads or automatic training here.
+The separately enabled simulator launcher supplies PRE-RESET final states.
 `optimize=True` is deliberately explicit and must be guarded by that launcher's
 user-approval and scene-feasibility checks. Tests use synthetic data only and
 never execute a real optimizer step.

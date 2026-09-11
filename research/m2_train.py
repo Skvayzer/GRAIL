@@ -32,7 +32,7 @@ def parse_args(argv=None):
     p.add_argument("--curriculum", type=Path, default=ROOT/"config/m2_curriculum.json")
     p.add_argument("--scene", default="stair_development_0")
     p.add_argument("--retention-family", choices=("stair_p1", "curb", "slope", "sitting"),
-                   help="Evaluation control: unchanged reference reset, CAT fixture 100m outside workspace")
+                   help="Evaluation control: unchanged reference reset, CAT fixture at (20m,20m) outside workspace")
     p.add_argument("--mode", choices=("collect", "train", "evaluate"), default="collect")
     p.add_argument("--execute", action="store_true")
     p.add_argument("--approve-optimizer", action="store_true")
@@ -62,7 +62,7 @@ def parse_args(argv=None):
         p.error("Retention controls are evaluation-only")
     config = UpdateConfig(horizon=args.horizon, epochs=args.epochs, minibatch_size=args.minibatch_size,
                           learning_rate=args.learning_rate)
-    if args.minibatch_size > args.horizon*args.num_envs:
+    if args.mode != "evaluate" and args.minibatch_size > args.horizon*args.num_envs:
         p.error("Minibatch must fit the rollout")
     if args.resume and not args.resume.is_file():
         p.error("Resume checkpoint does not exist")
@@ -85,7 +85,7 @@ def main(argv=None):
     placement = challenge.report["placement"]
     if args.retention_family:
         spec = dict(spec, family=args.retention_family, split="retention")
-        placement = dict(translation=[100., 100., 0.], yaw=0.)
+        placement = dict(translation=[20., 20., 0.], yaw=0.)
     if args.execute and not args.accept_isaac_eula:
         package = importlib.metadata.distribution("isaacsim")
         if not Path(package.locate_file("isaacsim/kit/EULA_ACCEPTED")).is_file() and os.environ.get("OMNI_KIT_ACCEPT_EULA", "").lower() != "yes":
@@ -148,11 +148,17 @@ def main(argv=None):
         try:
             exit_code = process.wait(timeout=args.timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
-            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 process.wait(timeout=20)
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 process.wait()
             exit_code = 124
     result_path = run/"training_result.json"

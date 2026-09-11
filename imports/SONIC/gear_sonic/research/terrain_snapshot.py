@@ -34,6 +34,40 @@ def remap_rays(origins, directions, from_position, from_quaternion, to_position,
     return (origins-positions[0]) @ rotation + positions[1], directions @ rotation
 
 
+def collision_triangles(points, counts, indices):
+    """Preserve triangles; split only convex planar quads (same exact surface).
+
+    Some upstream box/curb colliders use quads. Nonplanar/concave polygons are
+    rejected rather than guessing which surface PhysX cooked. Live ray parity
+    remains required after this purely representational triangulation.
+    """
+    points, counts, indices = np.asarray(points, dtype=float), np.asarray(counts), np.asarray(indices)
+    if (points.ndim != 2 or points.shape[1] != 3 or not np.isfinite(points).all()
+            or counts.ndim != 1 or not len(counts) or indices.ndim != 1
+            or not np.issubdtype(counts.dtype, np.integer) or not np.issubdtype(indices.dtype, np.integer)
+            or counts.sum() != len(indices) or not np.isin(counts, [3, 4]).all()
+            or indices.min() < 0 or indices.max() >= len(points)):
+        raise ValueError("Only valid triangle/quad terrain topology is supported")
+    result, start = [], 0
+    for count in counts:
+        face = indices[start:start+count]
+        start += count
+        polygon = points[face]
+        normal = np.cross(polygon[1]-polygon[0], polygon[2]-polygon[0])
+        length = np.linalg.norm(normal)
+        if length < 1e-12:
+            raise ValueError("Degenerate terrain face")
+        normal /= length
+        if count == 4:
+            if abs(np.dot(polygon[3]-polygon[0], normal)) > 1e-5:
+                raise ValueError("Nonplanar terrain quad cannot be triangulated unambiguously")
+            edges = np.roll(polygon, -1, axis=0)-polygon
+            if (np.cross(edges, np.roll(edges, -1, axis=0)) @ normal <= 1e-12).any():
+                raise ValueError("Nonconvex terrain quad cannot be triangulated unambiguously")
+        result.extend((face[0], face[i], face[i+1]) for i in range(1, count-1))
+    return np.asarray(result, dtype=np.int32)
+
+
 def rigid_collision_mesh(stage, root_path, position, quaternion):
     """Live pose replaces authored translation/rotation exactly once, retains scale."""
     if UsdGeom.GetStageUpAxis(stage) != "Z" or not np.isclose(UsdGeom.GetStageMetersPerUnit(stage), 1.):
@@ -64,8 +98,8 @@ def rigid_collision_mesh(stage, root_path, position, quaternion):
         if not prim.IsA(UsdGeom.Mesh) or UsdPhysics.MeshCollisionAPI(prim).GetApproximationAttr().Get() != "none":
             raise ValueError(f"Unvalidated terrain collider/approximation: {prim.GetPath()}")
         mesh = UsdGeom.Mesh(prim)
-        if not (np.asarray(mesh.GetFaceVertexCountsAttr().Get()) == 3).all():
-            raise ValueError("Terrain collider is not triangular")
+        if mesh.GetHoleIndicesAttr().Get():
+            raise ValueError("Terrain mesh holes require explicit cooked-topology handling")
         matrix = np.asarray(cache.GetLocalToWorldTransform(prim))
         if np.linalg.det(matrix[:3, :3]) <= 0:
             raise ValueError("Mirrored terrain collider")
@@ -73,7 +107,8 @@ def rigid_collision_mesh(stage, root_path, position, quaternion):
         authored_world = points @ matrix[:3, :3] + matrix[3, :3]
         local = (authored_world-root_matrix[3, :3]) @ authored_rotation.T
         world = local @ rotation.T + position
-        indices = np.asarray(mesh.GetFaceVertexIndicesAttr().Get(), dtype=np.int32).reshape(-1, 3)
+        indices = collision_triangles(points, mesh.GetFaceVertexCountsAttr().Get(),
+                                      mesh.GetFaceVertexIndicesAttr().Get())
         if mesh.GetOrientationAttr().Get() == "leftHanded":
             indices = indices[:, ::-1].copy()
         faces.append(indices + offset)

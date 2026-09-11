@@ -164,12 +164,12 @@ def physics_parity(wrapper, surface, arrays, terrain):
         direct_gpu_cpu_pose_limitation="https://nvidia-omniverse.github.io/PhysX/physx/5.7.0/docs/DirectGPUAPI.html")
 
 
-def run_live(wrapper, cat_audit, output, *, allow_replicated=False, challenge=None):
+def run_live(wrapper, cat_audit, output, *, allow_replicated=False, challenge=None, limits=LayoutLimits()):
     from .terrain_snapshot import capture
     output = Path(output)
     capture(wrapper, output.parent, allow_replicated=allow_replicated)
     report, arrays, surface = check(output.parent, cat_audit.fields.directory, cat_audit.placement,
-                                    device=str(wrapper.env.device))
+                                    device=str(wrapper.env.device), limits=limits)
     parity = physics_parity(wrapper, surface, arrays, report["terrain_snapshot"])
     report["physics_rays"] = parity
     report["physics_ray_parity_verified"] = parity["passed"]

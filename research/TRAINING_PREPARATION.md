@@ -1,5 +1,11 @@
 # Training preparation and review gate
 
+**Historical preparation checklist (before integration).** The user approved
+the scenes and subsequently authorized overnight training on 2026-09-12.
+The runtime/update/resume launcher now exists. Current commands, evidence and
+remaining research scope are in [M2_TRAINING.md](M2_TRAINING.md) and PROGRESS.md;
+the uncompleted items below describe the earlier preparation snapshot.
+
 Actual avoidance training is **not authorized yet**. The user will first review
 recorded environment/setup demos, then decide whether to start. Desktop-only
 frozen-policy rollouts, offline tests and mathematical checks are preparation;

@@ -1,10 +1,9 @@
-"""Isaac wrapper bridge for the future approved M2 pilot.
+"""Isaac wrapper bridge for the explicitly enabled M2 pilot.
 
 Importing/constructing this module does not start Isaac, access a robot, load
 weights, or run a training update. Exploration must be explicitly opted into;
-there is deliberately no user-facing training launcher until curriculum and
-approval gates are finished. Existing frozen evaluation entry points are not
-changed to use this bridge.
+the separate training launcher enforces curriculum and execution/update gates.
+Existing frozen evaluation entry points are not changed to use this bridge.
 """
 import copy
 
@@ -35,6 +34,7 @@ class SimulatorCollector:
         self.tap = PreResetCapture(self.env, self._capture)
         self.current, self.active = None, False
         self.steps = self.terminations = self.timeouts = 0
+        self.termination_counts = {}
 
     def __enter__(self):
         self.tap.__enter__()
@@ -47,6 +47,10 @@ class SimulatorCollector:
             raise ValueError("Pre-reset capture has no matching sampled action")
         before_packet, before_state = self.current
         term, timeout = self.env.reset_terminated.clone(), self.env.reset_time_outs.clone()
+        manager = getattr(self.env, "termination_manager", None)
+        if manager is not None:
+            for name in manager.active_terms:
+                self.termination_counts[name] = self.termination_counts.get(name, 0)+int(manager.get_term(name).sum())
         # NaNs explicitly mark unqueried true-terminal observations. They never
         # enter a model: termination removes bootstrap. Select remaining physical
         # rows BEFORE quaternion/geometry operations to isolate a failed robot.

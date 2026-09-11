@@ -1,5 +1,9 @@
 # M2 learner engine — preparation, not training approval
 
+Historical engine handoff. The separate approved runtime/overnight launcher is
+now implemented; see [M2_TRAINING.md](M2_TRAINING.md) for current operation.
+The launcher's pilot Adam rate is 3e-5; the tensor engine's default is unchanged.
+
 The collection/update and simulator-bridge modules are implemented. Existing
 Isaac entry points still use frozen actions only; **the new bridge is not yet
 exposed through an approved training launcher**. Do not treat this document as
