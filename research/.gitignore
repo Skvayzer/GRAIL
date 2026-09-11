@@ -2,3 +2,5 @@ artifacts/
 deps/
 runs/
 *.local.json
+!env/
+!env/*.txt

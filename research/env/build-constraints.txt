@@ -1,0 +1,2 @@
+# flatdict imports pkg_resources while building; setuptools >=81 removed it.
+setuptools==80.10.2

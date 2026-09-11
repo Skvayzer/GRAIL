@@ -1,0 +1,152 @@
+{
+  "repository": "nvidia/PhysicalAI-Robotics-Locomanipulation-GRAIL",
+  "revision": "40e795761302e611c1e7e3a6caefdd010d56c199",
+  "scenes": [
+    {
+      "family": "stair_p1",
+      "stem": "terrain_stairs__aged_terracotta_tile_straight_single_flight_staircase_with_12_warm_orange_steps_in_one_straight_run_no_handrails_no_curves_no_turns__0000"
+    },
+    {
+      "family": "curb",
+      "stem": "terrain_curbs__curb_000__000"
+    },
+    {
+      "family": "slope",
+      "stem": "terrain_slopes__slope_000__000"
+    },
+    {
+      "family": "sitting",
+      "stem": "sitting__acadian_rustic_wooden_dining_chair_distressed_white__000"
+    }
+  ],
+  "files": [
+    {
+      "path": "checkpoint/SONIC/models/terrain_release/config.yaml",
+      "size": 25317,
+      "hash_kind": "git-blob-sha1",
+      "hash": "362c2512fa61fce35d9811d93731a1ebc0c37d89"
+    },
+    {
+      "path": "checkpoint/SONIC/models/terrain_release/last.pt",
+      "size": 388075382,
+      "hash_kind": "sha256",
+      "hash": "699b17677fa7e6f98ed4cf3dfb99d2fedb56276116a56f2be593aa756fc00120"
+    },
+    {
+      "path": "data/stair_p1/robot/terrain_stairs__aged_terracotta_tile_straight_single_flight_staircase_with_12_warm_orange_steps_in_one_straight_run_no_handrails_no_curves_no_turns__0000.pkl",
+      "size": 198731,
+      "hash_kind": "sha256",
+      "hash": "769d1e123e3b09a8266d98e5c08d88da7c3b50da312d6760720cf5ce892997e5"
+    },
+    {
+      "path": "data/stair_p1/objects/terrain_stairs__aged_terracotta_tile_straight_single_flight_staircase_with_12_warm_orange_steps_in_one_straight_run_no_handrails_no_curves_no_turns__0000.pkl",
+      "size": 17709,
+      "hash_kind": "sha256",
+      "hash": "963e966e220f915b06a5ee15af20c7a2b19a94bb5d72c3225459b5466522718e"
+    },
+    {
+      "path": "data/stair_p1/object_usd/terrain_stairs__aged_terracotta_tile_straight_single_flight_staircase_with_12_warm_orange_steps_in_one_straight_run_no_handrails_no_curves_no_turns__0000.usd",
+      "size": 1422333,
+      "hash_kind": "sha256",
+      "hash": "b4299498a2ae103a5a100d7389854f1cd4748c547d5b9e096a45ba443e820b25",
+      "asset_remaps": {
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/terrain_real_yroom500_gen_stairs_down1k_hunyuan_0521_zclear015/object_usd/textures/model_metallic.jpg": "",
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/terrain_real_yroom500_gen_stairs_down1k_hunyuan_0521_zclear015/object_usd/textures/model_roughness.jpg": ""
+      },
+      "missing_optional_textures": [
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/terrain_real_yroom500_gen_stairs_down1k_hunyuan_0521_zclear015/object_usd/textures/model_metallic.jpg",
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/terrain_real_yroom500_gen_stairs_down1k_hunyuan_0521_zclear015/object_usd/textures/model_roughness.jpg"
+      ]
+    },
+    {
+      "path": "data/stair_p1/object_usd/textures/terrain_stairs__aged_terracotta_tile_straight_single_flight_staircase_with_12_warm_orange_steps_in_one_straight_run_no_handrails_no_curves_no_turns__0000/model.jpg",
+      "size": 1157069,
+      "hash_kind": "sha256",
+      "hash": "6d06a63bd270fc81a10299e9bc6e832a2a49b5ea413d2d426a942e106a8241f3"
+    },
+    {
+      "path": "data/curb/robot/terrain_curbs__curb_000__000.pkl",
+      "size": 198603,
+      "hash_kind": "sha256",
+      "hash": "72d78a31b58323a2b7dabea9ff2f07e5f285019ed3ad506461773c5ecd5b8c0a"
+    },
+    {
+      "path": "data/curb/objects/terrain_curbs__curb_000__000.pkl",
+      "size": 21421,
+      "hash_kind": "sha256",
+      "hash": "459c733c1f9f3dcecc19e940d86f4a3a4685ce783c0e1c69c386550ed23f728d"
+    },
+    {
+      "path": "data/curb/object_usd/terrain_curbs__curb_000__000.usd",
+      "size": 8482,
+      "hash_kind": "git-blob-sha1",
+      "hash": "7841b5d7da4bde9b47e7383dc6af031c53d768a0",
+      "asset_remaps": {},
+      "missing_optional_textures": []
+    },
+    {
+      "path": "data/curb/object_usd/textures/terrain_curbs__curb_000__000/texture.jpg",
+      "size": 3536,
+      "hash_kind": "sha256",
+      "hash": "0a8bc5d5e12890021fefbc29d1a0fe1ae835e147479748c4807eaee32ccf2149"
+    },
+    {
+      "path": "data/slope/robot/terrain_slopes__slope_000__000.pkl",
+      "size": 198603,
+      "hash_kind": "sha256",
+      "hash": "b77480d5f8f3339a3064276d6f9d443ac3a3456f20eb9195d48add176e561ee1"
+    },
+    {
+      "path": "data/slope/objects/terrain_slopes__slope_000__000.pkl",
+      "size": 17597,
+      "hash_kind": "sha256",
+      "hash": "efbcdbbdd178642703e36889147fb3335fb07ade0c0d68f6dcaae48a5b6d19ab"
+    },
+    {
+      "path": "data/slope/object_usd/terrain_slopes__slope_000__000.usd",
+      "size": 6656,
+      "hash_kind": "git-blob-sha1",
+      "hash": "15498920cd581ff65c1189b041ce869a58d01de0",
+      "asset_remaps": {},
+      "missing_optional_textures": []
+    },
+    {
+      "path": "data/slope/object_usd/textures/terrain_slopes__slope_000__000/texture.jpg",
+      "size": 1754,
+      "hash_kind": "sha256",
+      "hash": "cdf0fc71be57c1e15b7b8681789fb5e1ad42708e7cbfbd1111439f73d254c1a9"
+    },
+    {
+      "path": "data/sitting/robot/sitting__acadian_rustic_wooden_dining_chair_distressed_white__000.pkl",
+      "size": 99643,
+      "hash_kind": "sha256",
+      "hash": "1af632a4cbc133aa39aa173b6a54b1af6474107cf859e3c39b546b8e7a53f341"
+    },
+    {
+      "path": "data/sitting/objects/sitting__acadian_rustic_wooden_dining_chair_distressed_white__000.pkl",
+      "size": 268573,
+      "hash_kind": "sha256",
+      "hash": "cfb06d433d663e18f87518f752b9097358841300a432f232e8fc89b999ed48b3"
+    },
+    {
+      "path": "data/sitting/object_usd/sitting__acadian_rustic_wooden_dining_chair_distressed_white__000.usd",
+      "size": 1426022,
+      "hash_kind": "sha256",
+      "hash": "0ffcf639869262b564be781b06b9efc9e8bc92ea16090470a512360ccb0ea278",
+      "asset_remaps": {
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/sitting003_0515/object_usd/textures/model_metallic.jpg": "",
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/sitting003_0515/object_usd/textures/model_roughness.jpg": ""
+      },
+      "missing_optional_textures": [
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/sitting003_0515/object_usd/textures/model_metallic.jpg",
+        "/mnt/amlfs-05/home/tiaxie/code/GRAIL/data/motion_lib_genhoi/sitting003_0515/object_usd/textures/model_roughness.jpg"
+      ]
+    },
+    {
+      "path": "data/sitting/object_usd/textures/sitting__acadian_rustic_wooden_dining_chair_distressed_white__000/model.jpg",
+      "size": 553943,
+      "hash_kind": "sha256",
+      "hash": "5e26df3c5c459d6578fe38a802fba8edfc2f3041edd3e5a66ef7fbcba53e1edb"
+    }
+  ]
+}

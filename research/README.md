@@ -33,3 +33,33 @@ Large checkpoints/data are fetched by hash, never committed.
 
 Progress and actual test results are recorded in `PROGRESS.md`. Do not infer a
 completed milestone from the existence of a launcher or configuration.
+
+## Desktop commands (from repository root)
+
+```bash
+bash research/bootstrap.sh
+uv run --no-project --python 3.11.16 --with usd-core==26.3 python research/artifacts.py fetch
+git lfs pull --include='imports/SONIC/gear_sonic/data/assets/robot_description/**' --exclude=''
+.venv/bin/python research/artifacts.py verify
+.venv/bin/python -m unittest discover -s research/tests -v
+.venv/bin/python research/checkpoint_audit.py
+.venv/bin/python research/baseline.py --family stair_p1
+.venv/bin/python research/baseline.py --family stair_p1 --execute
+```
+
+`fetch` uses the committed manifest. Only maintainers preparing a *new* manifest
+use `artifacts.py prepare`. The default baseline command stages a run but does
+not launch physics; `--execute` starts a bounded desktop evaluation. Results and
+logs go to `research/runs/`. A process exit code alone is not a passed task.
+
+The environment snapshot is from an existing compatible desktop installation,
+not a claim of matching every version in NVIDIA's installer. Core versions and
+package differences must be recorded in evaluation reports. The bootstrap uses
+`--no-deps` deliberately to reproduce that package snapshot; runtime validation
+is still required. Build-time setuptools is constrained for flatdict.
+
+Each run copies the model and derives its own scene. Some released USDs refer to
+the authors' absolute texture paths; the manifest records relocations to the
+packaged per-scene textures. Missing metallic/roughness maps are explicitly
+cleared in the derived scene, never silently replaced with different physics.
+Original downloaded files retain their upstream checksums.
