@@ -609,6 +609,10 @@ def main(override_config: omegaconf.OmegaConf):
 
         run_once = config.get("run_once", False)
         envs_completed = torch.zeros(config.num_envs, dtype=torch.bool, device=device)
+        clearance_audit = None
+        if config.get("research_clearance_output"):
+            from gear_sonic.research.clearance_audit import ClearanceAudit
+            clearance_audit = ClearanceAudit(env, config.research_clearance_output)
 
         with torch.no_grad():
             while simulation_app.is_running():
@@ -637,6 +641,8 @@ def main(override_config: omegaconf.OmegaConf):
                     results[2],
                     results[3],
                 )  # noqa: F841
+                if clearance_audit is not None:
+                    clearance_audit.sample(actor_state["actions"], dones)
 
                 if eval_step_callbacks:
                     all_want_exit = all(
@@ -665,6 +671,8 @@ def main(override_config: omegaconf.OmegaConf):
                     remaining = env.env.step_dt - (time.perf_counter() - frame_start)
                     if remaining > 0:
                         time.sleep(remaining)
+        if clearance_audit is not None:
+            clearance_audit.finish()
 
     if simulator_type == "IsaacSim":
         os._exit(0)

@@ -64,7 +64,7 @@ def scene_overrides(run, data, stem, num_envs):
     }
 
 
-def evaluation_command(run, data, stem, num_envs, gui=False):
+def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False):
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
@@ -72,6 +72,10 @@ def evaluation_command(run, data, stem, num_envs, gui=False):
         overrides.update(headless=False, eval_callbacks=[], run_eval_loop=True,
                          realtime=True, run_once=False,
                          viewer_eye=[4.0, 4.0, 3.0], viewer_target=[0.0, 0.3, 1.0])
+    if clutter_audit:
+        overrides.update(eval_callbacks=[], run_eval_loop=True, run_once=True, max_render_steps=501,
+                         research_clearance_output=str(run / "clearance_audit.json"))
+        overrides["manager_env.config.research_clutter"] = "stair_side_v1"
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -86,6 +90,8 @@ def main():
     parser.add_argument("--num-envs", type=int, choices=range(1, 17), default=1)
     parser.add_argument("--execute", action="store_true", help="Run desktop physics, never robot control")
     parser.add_argument("--gui", action="store_true", help="Interactive repeating policy demo, not a metrics run")
+    parser.add_argument("--clutter-audit", action="store_true",
+                        help="One bounded stair reference with physical side clutter; no training or avoidance claim")
     parser.add_argument("--training-smoke", action="store_true",
                         help="Two PPO updates on a disposable checkpoint, not a full training run")
     parser.add_argument("--accept-isaac-eula", action="store_true",
@@ -96,6 +102,8 @@ def main():
         parser.error("--timeout must be positive")
     if args.gui and args.training_smoke:
         parser.error("--gui is for the released-policy demo, not training")
+    if args.clutter_audit and (args.training_smoke or args.gui or args.family != "stair_p1"):
+        parser.error("--clutter-audit is a separate headless stair-only diagnostic, not training/GUI")
     if args.execute and not args.accept_isaac_eula:
         package = importlib.metadata.distribution("isaacsim")
         accepted = Path(package.locate_file("isaacsim/kit/EULA_ACCEPTED"))
@@ -111,6 +119,8 @@ def main():
         verify_file(ROOT / "artifacts" / safe_path(item["path"]), item)
     scene = next(x for x in manifest["scenes"] if x["family"] == args.family)
     kind = "training_smoke" if args.training_smoke else ("gui_demo" if args.gui else "evaluation")
+    if args.clutter_audit:
+        kind = "clutter_audit"
     run = ROOT / "runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ") + "_" + args.family + "_" + kind)
     run.mkdir(parents=True, exist_ok=False)
     data = prepare_data(manifest, args.family, run)
@@ -122,7 +132,8 @@ def main():
         from training_smoke import training_command
         command = training_command(run, scene_overrides(run, data, scene["stem"], args.num_envs))
     else:
-        command = evaluation_command(run, data, scene["stem"], args.num_envs, gui=args.gui)
+        command = evaluation_command(run, data, scene["stem"], args.num_envs,
+                                     gui=args.gui, clutter_audit=args.clutter_audit)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -183,6 +194,13 @@ def main():
                 report = audit_training(run)
                 record["training_audit"] = report
                 outputs_valid = report["passed"]
+            elif args.clutter_audit:
+                from evaluation_audit import finite_nested
+                report = json.loads((run / "clearance_audit.json").read_text())
+                outputs_valid = (report["valid_diagnostic_run"] and finite_nested(report)
+                                 and len(report["solids"]) == 6 and report["probe_count"] > 29
+                                 and "Successfully loaded policy state dict" in (run / "process.log").read_text())
+                record["note"] = "Geometry diagnostics only; not an avoidance/retention benchmark"
             elif args.gui:
                 record["note"] = "Interactive demo closed; no benchmark metrics expected"
                 outputs_valid = True

@@ -16,10 +16,10 @@ obstacle avoidance or manipulation works.
 
 ## Milestones
 
-1. **M0 (current):** isolated installation, pinned terrain checkpoint and small
+1. **M0 (initial gates passed):** isolated installation, pinned terrain checkpoint and small
    paired scene/motion dataset, observation/action audit, baseline rollout and
    tiny training smoke test.
-2. M1: physical clutter, support geometry, full-body clearance and contact tests.
+2. **M1 (in progress):** physical clutter, support geometry, full-body clearance and contact tests.
 3. M2: reference-conditioned avoidance with per-terrain retention evaluation.
 4. M3: deployable goal-conditioned student without oracle inputs.
 5. M4/M5: masked hand commands, payload/contact geometry, frozen-base task adapters.
@@ -35,6 +35,7 @@ Progress and actual test results are recorded in `PROGRESS.md`. Do not infer a
 completed milestone from the existence of a launcher or configuration.
 The verified four-sample baseline and two-update training smoke results are in
 [`M0_RESULTS.md`](M0_RESULTS.md). CAT obstacle-avoidance training is not implemented yet.
+Geometry contracts and outstanding gates are in [`M1_GEOMETRY.md`](M1_GEOMETRY.md).
 
 ## Desktop commands (from repository root)
 

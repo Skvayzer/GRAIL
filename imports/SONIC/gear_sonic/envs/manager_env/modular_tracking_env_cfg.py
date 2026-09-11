@@ -1532,6 +1532,10 @@ class ModularTrackingEnvCfg(ManagerBasedRLEnvCfg):
             recorders,
         )
         self.override_settings()
+        # Research is explicitly opt-in; ordinary GRAIL scenes are unchanged.
+        if config.get("research_clutter"):
+            from gear_sonic.research.isaac_clutter import attach_clutter
+            attach_clutter(self.scene, config["research_clutter"], history_length=self.decimation)
 
     def _setup_from_hydra(
         self,

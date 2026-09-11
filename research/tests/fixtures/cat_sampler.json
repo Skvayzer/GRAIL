@@ -1,0 +1,12 @@
+{
+  "repository": "GalaxyGeneralRobotics/Click-and-Traverse",
+  "checkout_commit": "a51cef7efb8aa7ec11a1731e01acdb45a5e7a16f",
+  "file": "cat_ppo/envs/g1/env_cat.py",
+  "sha256": "ae56b75e698d179e095307cd514c0b0c34dffaeec30e822d4b178d13abb8766e",
+  "method": "Unmodified world_to_grid/sample_field AST methods executed with original JAX on CPU; no env import",
+  "field": "4x4x4 XYZ grid, channels [x,y,z,x+10*y+100*z] in index coordinates",
+  "origin": [-1.0, -2.0, -0.5],
+  "resolution": 0.25,
+  "indices": [[0.2,0.4,0.8],[1,1,1],[0.5,0.5,0.5],[2.8,1.2,0.1],[-1,0.1,0.2]],
+  "legacy_values": [[0.7999998927,0.4000000954,0.2000000328,24.8000030518],[1,1,1,111],[0.5,0.5,0.5,55.5],[2.0999999046,1.1999998093,0,14.0999984741],[0.2000000477,0.0999999046,0,1.1999990940]]
+}

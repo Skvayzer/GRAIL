@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-09-11 — M1 diagnostic geometry (partial)
+
+- Stopped the requested stair GUI demo and its owned simulator process. No robot
+  connection or actuation occurred.
+- Added opt-in ideal primitive fields, support/contact permission logic, and
+  conservative whole-body collider probes. Policy weights/inputs/rewards unchanged.
+- Confirmed a CAT interpolation X/Z weight-order mismatch using the original
+  methods in CPU JAX; pinned the numerical legacy fixture and tested explicit v1
+  corrections. Original CAT checkout remains untouched.
+- 25 unit tests passed. Seven sphere/PhysX contact fixtures passed in
+  `20260911T140916_411053Z_contact_fixtures` (exit 0). The earlier successful
+  fixture run stalled during Kit teardown; stopped only that owned process and
+  made the fixture runner exit after its report is flushed.
+- `20260911T140707_169344Z_stair_p1_clutter_audit`: exit 0, strict actor restore,
+  498 finite samples, 104 probes over actual imported capsules/sphere, 14 links,
+  six physical side-clutter fixtures. Minimum added-clutter clearance ~0.439 m;
+  no measured clutter contact. This is not an avoidance result.
+- Added independent self-contact sensors and physical scene-pose consistency
+  checks after that run; confirmation pending. A -0.052 m sphere-cover self-gap
+  in the initial run is a broad-phase warning, not evidence of actual collision.
+- User clarified that training clutter must come from CAT's actual generator.
+  Our primitives remain validation fixtures; next implementation adapts CAT's
+  simulator-independent occupancy generation into physical USD/PhysX geometry.
+
 ## 2026-09-11 — M0 started
 
 - Forked NVlabs/GRAIL into Skvayzer/GRAIL.

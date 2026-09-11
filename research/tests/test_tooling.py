@@ -41,6 +41,17 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_clutter_is_opt_in_bounded_and_not_training(self):
+        command = evaluation_command(Path("/run"), Path("/run/data/stair_p1"), "fixture", 1,
+                                     clutter_audit=True)
+        self.assertIn('++manager_env.config.research_clutter="stair_side_v1"', command)
+        self.assertIn("++max_render_steps=501", command)
+        self.assertIn("++run_once=true", command)
+        self.assertIn("++eval_callbacks=[]", command)
+        self.assertNotIn("train_agent", " ".join(command))
+        ordinary = evaluation_command(Path("/run"), Path("/run/data/stair_p1"), "fixture", 1)
+        self.assertFalse(any("research_clutter" in x for x in ordinary))
+
     def test_gui_repeats_without_one_shot_evaluation_callback(self):
         command = evaluation_command(Path("/run"), Path("/run/data/stair_p1"), "fixture", 1, gui=True)
         self.assertIn("++headless=false", command)
