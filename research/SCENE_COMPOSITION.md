@@ -121,6 +121,11 @@ Development reports: `20260911T152242_205946Z_composed_scene`,
 `20260911T152514_502606Z_composed_scene`, and
 `20260911T152537_952668Z_composed_scene`, respectively.
 
+Clean `a606d3c` confirmations reproduced all three expected outcomes with
+`adapter_dirty=false`: `20260911T152752_420279Z_composed_scene`,
+`20260911T152753_322907Z_composed_scene`, and
+`20260911T152754_494837Z_composed_scene`, respectively.
+
 Original-demo field coverage rises from **74.4605% to 100%** of 51,896 stored
 reference-probe samples (499 frames x 104 probes). Grid: 56 x 74 x 72, height
 2.88 m. Maximum interpolation discrepancies: 0.01948 m CAT distance and

@@ -34,6 +34,12 @@
   overly strict decimal assertion for float32 ray height; it now uses 1e-6 m.
   No new dependencies, environment conflicts, GUI/simulation launches, policy
   training, ROS changes or robot connections. `avoidance_training_ready=false`.
+- Clean-commit confirmation at `a606d3c`: all three offline compositions
+  reproduced the expected reject/reject/accept outcomes and 100% reference
+  coverage with `adapter_dirty=false`. Runs:
+  `20260911T152752_420279Z_composed_scene` (buried hurdle),
+  `20260911T152753_322907Z_composed_scene` (grounded/reference conflict),
+  `20260911T152754_494837Z_composed_scene` (clear control beyond endpoint).
 
 ## 2026-09-11 — combined terrain/support/passage validation
 
