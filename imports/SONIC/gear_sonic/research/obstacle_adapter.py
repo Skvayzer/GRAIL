@@ -28,7 +28,12 @@ class ObstacleAdapter(nn.Module):
             nn.init.zeros_(self.head.weight)
             nn.init.zeros_(self.head.bias)
 
-    def forward(self, packet):
+    def features(self, packet):
+        """Validated obstacle features; also reused by the learning prototype.
+
+        This extraction does not add parameters or change existing state keys.
+        It preserves the shadow adapter's deterministic zero-residual forward.
+        """
         v, p, g, valid = (packet[k] for k in ("volume", "probes", "guidance", "valid"))
         b = v.shape[0]
         if (v.ndim != 5 or v.shape[1] != 4 or p.shape != (b, self.probe_count, 8)
@@ -39,6 +44,8 @@ class ObstacleAdapter(nn.Module):
         masks_ok = (v[:, 2:] == 1).flatten(1).all(1) & (p[..., 6:] == 1).flatten(1).all(1) & (g[:, 7] == 1)
         if (valid & ~masks_ok).any():
             raise ValueError("Packet validity disagrees with geometry/guidance channels")
-        fused = self.fusion(torch.cat((self.volume_net(v), self.probe_net(p), g), -1))
-        residual = self.bound*torch.tanh(self.head(fused))
-        return torch.where(valid[:, None], residual, 0.)
+        return self.fusion(torch.cat((self.volume_net(v), self.probe_net(p), g), -1))
+
+    def forward(self, packet):
+        residual = self.bound*torch.tanh(self.head(self.features(packet)))
+        return torch.where(packet["valid"][:, None], residual, 0.)
