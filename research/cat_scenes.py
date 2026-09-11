@@ -124,8 +124,10 @@ def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceil
     source_manifest = verify_source()
     cfg = random.Cfg(seed=seed, difficulty=difficulty, n_rect_L=n_side, n_rect_R=n_side,
                      n_rect_F=n_floor, n_rect_C=n_ceiling)
+    role_arrays, role_summary = None, None
     if scene == "random":
-        occupied, xv, yv, zv = random.generate_and_save(cfg, save=False)
+        from random_cat_roles import trace_random
+        occupied, (xv, yv, zv), role_arrays, role_summary = trace_random(cfg, random)
     else:
         xv, yv, zv = random.make_axes(cfg)
         occupied = typical.build_obstacles(scene, np.meshgrid(xv, yv, zv, indexing="ij"))
@@ -146,6 +148,8 @@ def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceil
     for name, value in arrays.items():
         np.save(run/(name+".npy"), value, allow_pickle=False)
     export_usd(run/"scene.usda", vertices, faces)
+    if role_arrays is not None:
+        np.savez_compressed(run/"role_trace.npz", **role_arrays)
     versions = {n: importlib.metadata.version(n) for n in
                 ("numpy", "scipy", "scikit-image", "scikit-fmm", "torch", "PyYAML")}
     manifest = dict(schema="cat-isaac-scene-v1", source=source_manifest, scene=scene, seed=seed,
@@ -164,6 +168,8 @@ def generate(scene="random", seed=42, difficulty=.2, n_side=9, n_floor=3, n_ceil
                     adapter_dirty=bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT.parent, text=True)),
                     reproducibility_contract="pinned source, recorded dependencies and cached array hashes; no cross-runtime bitwise guarantee",
                     whole_body_path_feasibility_verified=False)
+    if role_summary is not None:
+        manifest["role_provenance"] = role_summary
     manifest["files"] = {p.name: sha256(p) for p in run.iterdir() if p.is_file()}
     (run/"scene.json").write_text(json.dumps(manifest, indent=2, allow_nan=False)+"\n")
     print(json.dumps({"scene_directory": str(run), "occupied_cells": manifest["occupied_cells"],

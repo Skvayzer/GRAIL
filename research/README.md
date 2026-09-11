@@ -48,6 +48,9 @@ Per-physics-step articulated contact capture, including terminal steps, is in
 [`ARTICULATED_CONTACTS.md`](ARTICULATED_CONTACTS.md); phase permissions remain provisional.
 Controlled imported-G1 contact fixtures and the saved stair-contact review queue
 are documented in [`CONTACT_FIXTURES.md`](CONTACT_FIXTURES.md).
+Traced random CAT morphology, the fixed seeded placement batch, and diagnostic
+terrain-aware support-graph guidance are in
+[`RANDOM_CLUTTER_GUIDANCE.md`](RANDOM_CLUTTER_GUIDANCE.md).
 
 ## Desktop commands (from repository root)
 

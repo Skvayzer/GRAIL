@@ -1,5 +1,37 @@
 # Progress
 
+## 2026-09-11 — random role provenance and terrain-aware diagnostic guidance
+
+- Added original-output-exact random CAT tracing without editing pinned source,
+  changing random draws or modifying geometry. Preserve source memberships;
+  morphology additions get a role only with unambiguous single-role dependency.
+  Mixed/padding dependencies remain unresolved. Traces are checksummed and
+  fully replayed before role-based placement. Old untraced scenes stay readable
+  as geometry but still cannot pass role-based placement.
+- Added shared bounded support graph and offline `terrain_guidance.py`: goal
+  graph distance, next node and world-XYZ direction on known support patches.
+  Swept transit, trunk clearance, riser/stride bounds and no corner cutting;
+  explicit NaN/false/-1 for unreachable cells, zero direction at the goal.
+  No policy input/reward/command change or full-3D/whole-body feasibility claim.
+- Development batch `20260911T183023_271089Z_random_clutter_audit` tested fixed
+  seeds 0/1/42 at difficulty 0.2 across three recipes, without resampling.
+  Original-count scenes all reject ambiguous roles (465/917/395 voxels).
+  Sparse lateral seeds 0/42 resolve, seed 1 rejects (224 voxels). Floor-only
+  outputs are empty after original CAT morphology and reject. Four of six
+  sparse placements pass cached geometry/role/reference screens; two fail
+  rigid grounding at the stair footprint. These are controls, not evidence
+  of a learned avoidance response or physical mounting validity.
+- Guidance on the retained fixed-scene control and all four passing sparse
+  placements gives 12-node routes, 2.610522 m graph distance, support heights
+  0..1.244169 m. Occupancy affects reachable area but these trials do not require
+  a route change from the reference corridor. Original CAT fields are untouched.
+- 97 tests pass (13 new): independent Python/sparse graph distance parity,
+  holes/cliffs/walls, invalid goals, resource bounds, world-grid/hash checks,
+  source parity, morphology replay, immutable upstream globals and trace tamper
+  rejection. All 18 baseline artifacts verify; no unexpected runtime conflicts.
+- Commands, assumptions and remaining gates: `RANDOM_CLUTTER_GUIDANCE.md`.
+  Clean-commit batch/physical regression are pending at this entry's creation.
+
 ## 2026-09-11 — controlled articulated contact fixtures and review queue
 
 - Added nine headless physical fixtures with the imported 29-joint G1, measuring

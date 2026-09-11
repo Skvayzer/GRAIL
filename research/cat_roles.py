@@ -1,8 +1,8 @@
-"""Explicit role replay for selected pinned CAT fixed scenes (not new generation).
+"""Explicit role replay for pinned CAT fixed scenes and traced random scenes.
 
 No connected-component guessing: joining posts and hurdles retain their roles.
-Random scenes have no stored role provenance after CAT morphology; reject them
-here until a traceable role-preserving generator adapter is implemented.
+Random scenes require a checksummed generation trace. Ambiguous morphology
+additions reject terrain placement rather than receiving guessed role labels.
 """
 import numpy as np
 
@@ -14,6 +14,20 @@ def role_masks(directory):
     meta = verify_scene_files(directory)
     if meta["source"] != verify_source():
         raise ValueError("Role replay requires the exact pinned CAT generator")
+    if meta["scene"] == "random":
+        from pathlib import Path
+        from random_cat_roles import verify_trace
+        trace = meta.get("role_provenance")
+        if not trace or not trace.get("upstream_parity_verified"):
+            raise ValueError("Random scene lacks explicit role provenance; regenerate with tracing")
+        with np.load(Path(directory)/trace["file"], allow_pickle=False) as archive:
+            arrays = {k: archive[k] for k in archive.files}
+        cached = np.load(Path(directory)/"obs.npy", allow_pickle=False)
+        _, random, _, _ = generator_modules()
+        masks, unresolved = verify_trace(meta, cached, arrays, random)
+        if unresolved.any() or not trace["placement_roles_resolved"]:
+            raise ValueError(f"Unresolved random morphology roles ({int(unresolved.sum())} cells); not valid for terrain placement")
+        return {k: v for k, v in masks.items() if v.any()}, meta
     _, _, typical, _ = generator_modules()
     axes = [meta["sample_origin"][a]+np.arange(meta["shape"][a])*meta["resolution"] for a in range(3)]
     grids = np.meshgrid(*axes, indexing="ij")

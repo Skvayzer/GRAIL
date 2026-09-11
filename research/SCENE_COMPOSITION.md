@@ -12,8 +12,9 @@ it does not start Isaac, a policy, ROS or a robot connection.
 unchanged pinned CAT **fixed-scene** functions. Their union must match the
 checksummed cached occupancy exactly. Roles may overlap: a hurdle joining two
 posts must not disappear into one unlabelled connected component. Unknown
-recipes and random scenes fail explicitly. Random CAT's morphology does not
-retain source role provenance; a separate traceable adapter is still needed.
+recipes fail explicitly. New random exports retain replay-verified role traces;
+old random exports without traces and ambiguous morphology additions still
+reject placement. See [RANDOM_CLUTTER_GUIDANCE.md](RANDOM_CLUTTER_GUIDANCE.md).
 
 `--ground-on-terrain` proposes a **rigid Z translation only** from terrain
 support beneath all occupied footprint-cell centres and corners. Translation
@@ -73,6 +74,10 @@ sqrt(3)*voxel 1-Lipschitz interpolation bound.
 This is **simulation-oracle geometry**, not the G1 LiDAR observation interface.
 CAT's original guidance/FMM remains restricted to its original domain. It is
 neither extended by padding nor presented as terrain-aware guidance.
+The separate `terrain_guidance.py` diagnostic now exports bounded 2.5D support
+graph guidance from a layout snapshot; it does not replace the original CAT
+fields or add policy observations. Composition acceptance alone does not connect
+that guidance or authorize training.
 
 ## Commands
 

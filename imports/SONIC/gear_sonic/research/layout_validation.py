@@ -6,12 +6,13 @@ a balance/reachability guarantee. The unchanged full-body reference must also
 pass its independent collider-cover gate before a diagnostic rollout.
 """
 from dataclasses import asdict, dataclass
-import heapq
 import math
 
 import numpy as np
 from scipy import ndimage
 import torch
+
+from .support_guidance import SupportGraph
 
 
 @dataclass(frozen=True)
@@ -43,66 +44,8 @@ def support_path(height, walkable, start, goal, resolution, max_step, *, transit
     blocked trunk envelope or a height excursion greater than max_step. A
     conservative line-cell cover also prevents diagonal corner cutting.
 """
-    height, walkable = np.asarray(height), np.asarray(walkable)
-    if height.ndim != 2 or height.shape != walkable.shape or walkable.dtype != bool:
-        raise ValueError("Expected matching height/bool grids")
-    if resolution <= 0 or max_step <= 0 or not np.isfinite([resolution, max_step]).all():
-        raise ValueError("Invalid graph dimensions")
-    if not np.isfinite(height[walkable]).all():
-        raise ValueError("Walkable cells must have known support")
-    transit = walkable if transit is None else np.asarray(transit)
-    if transit.shape != walkable.shape or transit.dtype != bool or not np.isfinite(height[transit]).all():
-        raise ValueError("Transit mask needs known finite support")
-    stride = math.sqrt(2)*resolution if max_stride is None else max_stride
-    if not math.isfinite(stride) or stride < resolution:
-        raise ValueError("Invalid stride bound")
-    offsets = []
-    reach = math.ceil(stride/resolution)
-    for dx in range(-reach, reach+1):
-        for dy in range(-reach, reach+1):
-            length = math.hypot(dx, dy)
-            if not length or length*resolution > stride+1e-8:
-                continue
-            cells = set()
-            for fraction in np.linspace(0., 1., math.ceil(length*2)+1):
-                x, y = fraction*dx, fraction*dy
-                for i in (math.floor(x), math.ceil(x)):
-                    for j in (math.floor(y), math.ceil(y)):
-                        cells.add((i, j))
-            offsets.append((dx, dy, tuple(cells)))
-    def valid(p):
-        return 0 <= p[0] < height.shape[0] and 0 <= p[1] < height.shape[1] and walkable[p]
-    def edge(a, b):
-        return valid(a) and valid(b) and abs(height[a]-height[b]) <= max_step
-    start, goal = tuple(start), tuple(goal)
-    if not valid(start) or not valid(goal):
-        return []
-    queue, cost, parent = [(0., start)], {start: 0.}, {}
-    while queue:
-        distance, a = heapq.heappop(queue)
-        if distance != cost[a]:
-            continue
-        if a == goal:
-            path = [a]
-            while a in parent:
-                a = parent[a]
-                path.append(a)
-            return path[::-1]
-        for dx, dy, cells in offsets:
-            b = a[0]+dx, a[1]+dy
-            if not edge(a, b):
-                continue
-            swept = [(a[0]+i, a[1]+j) for i, j in cells]
-            if any(not transit[p] for p in swept):
-                continue
-            heights = [height[p] for p in swept]
-            if max(heights)-min(heights) > max_step:
-                continue
-            value = distance + math.sqrt((resolution*dx)**2 + (resolution*dy)**2 + (height[b]-height[a])**2)
-            if value < cost.get(b, float("inf")):
-                cost[b], parent[b] = value, a
-                heapq.heappush(queue, (value, b))
-    return []
+    return SupportGraph(height, walkable, resolution, max_step,
+                        transit=transit, max_stride=max_stride).route(start, goal)
 
 
 def layout_grid(surface, clutter, placement, anchors, limits=LayoutLimits()):
@@ -173,6 +116,7 @@ def layout_grid(surface, clutter, placement, anchors, limits=LayoutLimits()):
     report = dict(limits=asdict(limits), shape=shape, xy_origin=lo.tolist(),
         support_cells=int(support.sum()), traversable_screen_cells=int(walkable.sum()),
         endpoint_reference_frames=[0, endpoint], endpoint_snap_m=snaps,
+        endpoint_grid_indices=[list(map(int, p)) if p is not None else None for p in indices],
         geometric_route_found=len(route) > 1, route_points=len(route),
         route_length_m=float(np.linalg.norm(np.diff(route, axis=0), axis=1).sum()) if len(route) else None,
         anchor_support_fraction=float(anchor_supported.float().mean()),

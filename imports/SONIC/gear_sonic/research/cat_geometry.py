@@ -21,7 +21,13 @@ def verify_scene_files(directory):
     data = json.loads((directory/"scene.json").read_text())
     if data["schema"] != "cat-isaac-scene-v1":
         raise ValueError("Unknown CAT scene schema")
-    if set(data["files"]) != {"obs.npy", "sdf.npy", "bf.npy", "gf.npy", "travel.npy", "scene.usda"}:
+    expected_files = {"obs.npy", "sdf.npy", "bf.npy", "gf.npy", "travel.npy", "scene.usda"}
+    if "role_provenance" in data:
+        if (data["scene"] != "random" or data["role_provenance"].get("schema") != "cat-random-role-trace-v1"
+                or data["role_provenance"].get("file") != "role_trace.npz"):
+            raise ValueError("Unvalidated random role provenance")
+        expected_files.add("role_trace.npz")
+    if set(data["files"]) != expected_files:
         raise ValueError("Unexpected scene files")
     for name, expected in data["files"].items():
         if hashlib.sha256((directory/name).read_bytes()).hexdigest() != expected:
