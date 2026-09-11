@@ -6,6 +6,17 @@ explicitly requested an overnight simulation training run. No real robot is
 connected by these programs. The older preparation documents describe earlier
 gates; this page supersedes their statements that no training launcher exists.
 
+## Overnight run started on 12 September
+
+W&B: https://wandb.ai/skvayzer/grail-cat/runs/46v3eekz
+
+Run directory: `research/runs/20260911T220756_837720Z_m2_train`.
+Started at 02:07:56 Dubai time from clean source commit `b9b8d55`.
+At handoff, the first 100-iteration checkpoint had been independently verified
+and training was still active. These are historical start/handoff facts;
+use `m2_job.py status` for the current state. The limit is 8,000 iterations or
+eight hours, not a promise of learned avoidance by morning.
+
 ## What this first pilot trains
 
 - Initialize the motor backbone from the pinned released GRAIL terrain model.

@@ -1,5 +1,39 @@
 # Progress
 
+## 2026-09-12 — overnight pilot started; first periodic checkpoint verified
+
+- Final locomotion setup suite `20260911T220207_819774Z_m2_evaluation_suite`
+  passed all four execution audits: validation clutter, stair, curb and slope.
+  Each locomotion control had zero failures and one timeout. Clutter validation
+  had one real contact failure; its process/reset path passed, **not** avoidance
+  performance. Sitting is explicitly excluded under the current support model.
+- Detached lifecycle smoke `20260911T220702_602150Z_overnight_job` completed:
+  128 transitions, 16 Adam steps, final checkpoint, independent saved-file audit,
+  supervisor completion, and no lingering simulation job. No host services,
+  login policy, sudo configuration or other projects were changed.
+- Started the requested overnight run at **2026-09-11 22:07:56 UTC**
+  (12 September 02:07:56 Dubai), within the user's two-hour setup/debug cap.
+  Source: clean `b9b8d55d25363b723053fbd47a1c2d72d5df5631`.
+  Job: `20260911T220754_075232Z_overnight_job`.
+  Training: `20260911T220756_837720Z_m2_train`.
+  W&B: https://wandb.ai/skvayzer/grail-cat/runs/46v3eekz
+- Fresh learner; frozen GRAIL backbone; development seed 0 only; four
+  environments, at most 8,000 PPO iterations or eight hours. Checkpoints every
+  100 iterations; automatic final evaluation when sufficient time remains.
+  No automatic retries. Stop on invalid data/process failure, ten minutes of
+  stalled progress, low disk (<20GiB), or wall-clock budget exhaustion.
+- **Handoff observation at 22:12 UTC:** still training at iteration 111,
+  14,208 transitions, 451 Adam steps, one failure and 27 timeouts. Expected
+  early learning failures are counted rather than called successes. GPU memory
+  about 4.3GB; free disk about 183GiB; supervisor heartbeat healthy.
+- First periodic `learner_000100.pt` independently loaded and checked: 420 Adam
+  steps, finite tensors, consistent optimizer counters/contract, 4,776,468 bytes.
+  SHA256: `50b32e83ffa4211c682be1f1a033fd8040ba33b1e6e131ec7540743b22ada96a`.
+- 215 automated tests passed. Use `research/m2_job.py status` for **current**
+  state; the figures above are historical handoff observations, not a claim of
+  completed overnight training. Commands also saved on the desktop as
+  `GRAIL_CAT_training_commands.txt`. No real robot actuation occurred.
+
 ## 2026-09-12 — integrated M2 updates/resume and supervised overnight preparation
 
 - User approved the reviewed environments and explicitly requested overnight
