@@ -636,7 +636,16 @@ def main(override_config: omegaconf.OmegaConf):
             from gear_sonic.research.contact_audit import ContactAudit
             contact_audit = ContactAudit(env, clearance_audit, config.research_contact_output)
 
-        with torch.no_grad(), (contact_audit if contact_audit is not None else nullcontext()):
+        observation_shadow = None
+        if config.get("research_observation_shadow_output"):
+            if not config.get("research_layout_output") or not run_once or not args_cli.headless or config.num_envs != 1:
+                raise ValueError("Observation shadow requires headless single-episode layout screening")
+            from gear_sonic.research.observation_shadow import ObservationShadow
+            observation_shadow = ObservationShadow(env, clearance_audit, model.policy,
+                                                    config.research_observation_shadow_output)
+
+        with torch.no_grad(), (contact_audit if contact_audit is not None else nullcontext()), \
+                (observation_shadow if observation_shadow is not None else nullcontext()):
             while simulation_app.is_running():
                 frame_start = time.perf_counter()
                 policy_model = model.policy
@@ -656,6 +665,8 @@ def main(override_config: omegaconf.OmegaConf):
                         env.end_render_results()
                     break
 
+                if observation_shadow is not None:
+                    observation_shadow.sample(policy_model.obs_dict_buffer, actor_state["actions"])
                 results = env.step(actor_state)
                 obs_dict, rewards, dones, infos = (
                     results[0],
@@ -663,6 +674,8 @@ def main(override_config: omegaconf.OmegaConf):
                     results[2],
                     results[3],
                 )  # noqa: F841
+                if observation_shadow is not None:
+                    observation_shadow.outcome(dones)
                 if contact_audit is not None:
                     contact_audit.policy_step(dones)
                 if clearance_audit is not None:

@@ -14,6 +14,11 @@ The newest [ARTICULATED_CONTACTS.md](ARTICULATED_CONTACTS.md) adds opt-in
 pre-reset capture of articulated terrain/ground/CAT contacts at every physics
 step. This closes capture coverage for that diagnostic, not phase-label truth
 or the full contact-permission/avoidance-training gate.
+Random role tracing and diagnostic terrain guidance are now documented in
+[RANDOM_CLUTTER_GUIDANCE.md](RANDOM_CLUTTER_GUIDANCE.md); ambiguous morphology
+still rejects role-based placement. [OBSERVATION_SHADOW.md](OBSERVATION_SHADOW.md)
+adds an observation-only geometry/guidance interface and frozen-clone gradient
+checks, without enabling actor conditioning, contact rewards or M2 training.
 
 Desktop simulation only. No new policy training, deployed observation interface,
 robot SDK, ROS changes or actuation. The original terrain checkpoint stays

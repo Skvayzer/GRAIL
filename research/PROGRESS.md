@@ -1,5 +1,40 @@
 # Progress
 
+## 2026-09-11 — obstacle observation interface and zero-residual shadow adapter
+
+- Added yaw-only, pelvis-centred 3D oracle samples: 13 x 13 x 11 at 16 cm,
+  signed CAT and unsigned terrain distances with separate masks. Additional
+  per-collider-cover features follow all 104 imported probes through articulation.
+  Goal/support-height delta, support-graph direction and cost have explicit
+  validity/goal flags. No new signed terrain or sensor-free-space claim.
+- Added a separate small 3D/probe encoder with zero-initialized 64D latent head,
+  bounded at 0.1 per coordinate. Reuses the existing post-quantization residual
+  argument on a frozen actor clone only. The original actor remains the sole
+  source for `env.step`; no trained adapter loader, optimizer, rewards, ROS,
+  robot connection or real motion. Bound is not a hardware safety guarantee.
+- New headless `--observation-shadow` requires the existing single-environment
+  physical layout/reference preflight. It captures before each actual policy
+  step and pairs outcomes through terminal reset. Tests require exact cloned /
+  original / zero-residual action parity, unmodified observations and RNG,
+  unchanged backbone/adapter weights and a nonzero finite gradient to the new
+  head through the frozen decoder. No gradient update is applied.
+- Development run `20260911T184716_604447Z_stair_p1_cat_audit`: exit 0, outputs
+  valid, 499 exact action-parity samples; head gradient norm 0.116968. Backbone
+  and adapter hashes unchanged. Geometry masks all known; 334 valid guidance
+  frames and 165 explicitly invalid ones. All 165 correspond to unsupported
+  small-patch cells below the pelvis, not missing terrain or blocked transit.
+  Do not use this hard gate as a final continuous-control design.
+- This run reproduced the prior no-shadow random-scene run's sampled clearance
+  sequence and minima exactly, plus 499 / 1,996 policy/physics steps and 217,710
+  contact records with identical classification counts. Mean shadow processing
+  was 9.32 ms, maximum 77.60 ms on this GPU; not an end-to-end real-time claim.
+- 112 tests pass (15 new), including CPU/CUDA/frame parity, invalid masks,
+  support-vs-clutter channels, zero/RNG/gradient/bounds, launcher restrictions,
+  saved action tamper detection and terminal pairing. No new runtime conflicts.
+- Added raw probe-centre capture and independent offline geometry replay after
+  the development run above. A clean-commit run/replay remains to confirm this
+  final payload. Commands and limitations: `OBSERVATION_SHADOW.md`.
+
 ## 2026-09-11 — random role provenance and terrain-aware diagnostic guidance
 
 - Added original-output-exact random CAT tracing without editing pinned source,

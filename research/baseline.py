@@ -65,7 +65,8 @@ def scene_overrides(run, data, stem, num_envs):
 
 
 def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
-                       cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False, contact_audit=False):
+                       cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False, contact_audit=False,
+                       observation_shadow=False):
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
@@ -94,6 +95,10 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
         if not layout_audit or gui:
             raise ValueError("Contact audit requires headless single-environment layout audit")
         overrides["research_contact_output"] = str(run / "contact_audit.json")
+    if observation_shadow:
+        if not layout_audit or gui:
+            raise ValueError("Observation shadow requires headless single-environment layout audit")
+        overrides["research_observation_shadow_output"] = str(run / "observation_shadow.json")
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -115,6 +120,8 @@ def main():
                         help="Check terrain support, passage and physical ray parity before CAT rollout; one environment")
     parser.add_argument("--contact-audit", action="store_true",
                         help="Record articulated contacts every physics step before reset; requires headless layout audit")
+    parser.add_argument("--observation-shadow", action="store_true",
+                        help="Record oracle obstacle packets and zero-residual frozen-clone parity; NEVER apply adapter actions")
     parser.add_argument("--cat-translation", type=float, nargs=3, default=(0., 0., 0.), metavar=("X", "Y", "Z"))
     parser.add_argument("--cat-yaw", type=float, default=0., help="CAT-to-terrain yaw in radians")
     parser.add_argument("--training-smoke", action="store_true",
@@ -131,6 +138,8 @@ def main():
         parser.error("--layout-audit needs --cat-scene and --num-envs 1")
     if args.contact_audit and (not args.layout_audit or args.gui or args.training_smoke):
         parser.error("--contact-audit requires --layout-audit, no GUI or training")
+    if args.observation_shadow and (not args.layout_audit or args.gui or args.training_smoke):
+        parser.error("--observation-shadow requires --layout-audit, no GUI or training")
     if args.cat_scene:
         if args.training_smoke or args.clutter_audit or args.num_envs > 4:
             parser.error("CAT integration supports at most four environments; no training or primitive audit")
@@ -175,7 +184,8 @@ def main():
         command = evaluation_command(run, data, scene["stem"], args.num_envs,
                                      gui=args.gui, clutter_audit=args.clutter_audit, cat_scene=args.cat_scene,
                                      cat_translation=args.cat_translation, cat_yaw=args.cat_yaw,
-                                     layout_audit=args.layout_audit, contact_audit=args.contact_audit)
+                                     layout_audit=args.layout_audit, contact_audit=args.contact_audit,
+                                     observation_shadow=args.observation_shadow)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -257,6 +267,10 @@ def main():
                     record["contact_capture_complete"] = contacts["capture_complete"]
                     outputs_valid = outputs_valid and contacts["capture_complete"] and finite_nested(contacts)
                     record["note"] = "Pre-reset articulated contact capture; phase candidates, not validated contact permissions or avoidance training"
+                if args.observation_shadow:
+                    from observation_results import audit_observation_shadow
+                    record["observation_shadow_audit"] = audit_observation_shadow(run)
+                    outputs_valid = outputs_valid and record["observation_shadow_audit"]["passed"]
                 if args.gui:
                     record["viewer_ready"] = (run / "viewer_ready.json").is_file()
                     outputs_valid = outputs_valid and record["viewer_ready"]

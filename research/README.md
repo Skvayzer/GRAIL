@@ -51,6 +51,9 @@ are documented in [`CONTACT_FIXTURES.md`](CONTACT_FIXTURES.md).
 Traced random CAT morphology, the fixed seeded placement batch, and diagnostic
 terrain-aware support-graph guidance are in
 [`RANDOM_CLUTTER_GUIDANCE.md`](RANDOM_CLUTTER_GUIDANCE.md).
+The opt-in 3D oracle observation packet and zero-residual frozen-checkpoint
+shadow tests are in [`OBSERVATION_SHADOW.md`](OBSERVATION_SHADOW.md). Their
+predictions are not used for simulator actions, and no avoidance training runs.
 
 ## Desktop commands (from repository root)
 
