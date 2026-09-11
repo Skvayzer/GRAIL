@@ -298,8 +298,8 @@ def main(config: OmegaConf):
         AppLauncher.add_app_launcher_args(parser)
 
         ######################################################### ZL: fix isaacsim 4.5 rendering #########################################################
-        args_cli, hydra_args = parser.parse_known_args()
-        sys.argv = [sys.argv[0]] + hydra_args
+        from gear_sonic.utils.app_launcher_args import consume_app_launcher_args
+        args_cli = consume_app_launcher_args(parser)
         args_cli.num_envs = config.num_envs
         args_cli.seed = config.seed
         args_cli.env_spacing = env_config.config.env_spacing  # config.env_spacing

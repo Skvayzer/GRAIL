@@ -1,8 +1,10 @@
 import hashlib
+import argparse
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from artifacts import digest, portable_asset_reference, safe_path, verify_file
@@ -11,6 +13,7 @@ from check_environment import ALLOWED, classify
 from snapshot_environment import portable_requirements
 from training_smoke import smoke_overrides, UPDATES, STEPS_PER_ENV
 from evaluation_audit import finite_nested
+from gear_sonic.utils.app_launcher_args import consume_app_launcher_args
 
 
 class ArtifactTests(unittest.TestCase):
@@ -38,6 +41,15 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_hydra_flags_do_not_reach_kit(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--headless", action="store_true")
+        argv = ["train.py", "--config-path", "/run/config", "--config-name", "smoke", "--headless", "++num_envs=4"]
+        with patch.object(sys, "argv", argv):
+            args = consume_app_launcher_args(parser)
+            self.assertTrue(args.headless)
+            self.assertEqual(sys.argv, ["train.py"])
+
     def test_rollout_validation_rejects_nonfinite_nested_state(self):
         self.assertTrue(finite_nested({"terminated": [False], "state": [1.0, 2.0]}))
         self.assertFalse(finite_nested({"state": [[float("nan")]]}))

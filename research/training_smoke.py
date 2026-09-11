@@ -64,6 +64,18 @@ def audit_training(run):
     keys_match = initial.keys() == final.keys()
     shapes_match = keys_match and all(initial[k].shape == final[k].shape for k in initial)
     finite = all(bool(torch.isfinite(v).all()) for v in final.values())
+    critic_finite = all(bool(torch.isfinite(v).all()) for v in after["value_state_dict"].values())
+
+    def finite_optimizer(value):
+        if isinstance(value, torch.Tensor):
+            return bool(torch.isfinite(value).all())
+        if isinstance(value, dict):
+            return all(finite_optimizer(v) for v in value.values())
+        if isinstance(value, (tuple, list)):
+            return all(finite_optimizer(v) for v in value)
+        return True
+
+    optimizer_finite = finite_optimizer(after["optimizer_state_dict"])
     changed = [k for k in initial if k in final and initial[k].shape == final[k].shape
                and not torch.equal(initial[k], final[k])]
     log = (run / "process.log").read_text(errors="replace")
@@ -72,9 +84,11 @@ def audit_training(run):
         "updates": after["state"].global_step,
         "actor_keys_match": keys_match, "actor_shapes_match": shapes_match,
         "actor_finite": finite, "changed_actor_tensors": changed,
+        "critic_finite": critic_finite, "optimizer_tensors_finite": optimizer_finite,
         "skipped_nan_gradient": "NaN in gradient!" in log,
     }
     report["passed"] = (report["updates"] == UPDATES and shapes_match and finite
+                        and critic_finite and optimizer_finite
                         and bool(changed) and not report["skipped_nan_gradient"])
     (run / "training_audit.json").write_text(json.dumps(report, indent=2) + "\n")
     return report

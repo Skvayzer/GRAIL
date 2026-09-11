@@ -217,8 +217,8 @@ def main(override_config: omegaconf.OmegaConf):
         parser = argparse.ArgumentParser(description="Evaluate an RL agent with TRL.")
         AppLauncher.add_app_launcher_args(parser)
 
-        args_cli, hydra_args = parser.parse_known_args()
-        sys.argv = [sys.argv[0]] + hydra_args  # noqa: RUF005
+        from gear_sonic.utils.app_launcher_args import consume_app_launcher_args
+        args_cli = consume_app_launcher_args(parser)
         args_cli.num_envs = config.num_envs
         args_cli.seed = config.seed
         args_cli.env_spacing = env_config.config.env_spacing

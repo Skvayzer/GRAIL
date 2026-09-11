@@ -77,3 +77,23 @@
   representation, task adapter, or robot integration is being trained yet.
 - Added finite-rollout evidence audit and bounded-training configuration tests.
   Nine tooling unit tests pass. Actual PPO backward/update verification pending.
+
+### PPO update and save verified
+
+- All four pinned sample references completed without failure termination:
+  stairs 35.668 mm, curb 52.631 mm, slope 26.317 mm, sitting 16.879 mm global
+  MPJPE. Finite action/state recordings and strict checkpoint restoration passed.
+  These are four sample checks, not a representative benchmark or new result.
+- Training initially segfaulted inside `libomni.kit.app.plugin.so`. Moving TRL
+  imports did not help and was reverted. The effective fix is removing already
+  consumed Hydra CLI flags from Kit's `sys.argv`, while preserving AppLauncher
+  options in its parsed namespace. Added a regression test and shared this fix
+  with evaluation, which otherwise has the same custom-config CLI risk.
+- Run `20260911T134423_383394Z_stair_p1_training_smoke` completed two PPO updates
+  over four environments / eight steps each (64 transitions). It restored the
+  released actor strictly plus critic/optimizer, reset counters, changed actor
+  weights, and saved a new step-2 checkpoint. Actor, critic and optimizer tensors
+  were finite, with no skipped NaN-gradient update detected.
+- M0's initial install/restore/rollout/backward/save gates are now demonstrated.
+  A clean-commit confirmation run is next. M1 physical clutter, support/obstacle
+  semantics, full-body clearance, and CAT-conditioned learning remain future work.
