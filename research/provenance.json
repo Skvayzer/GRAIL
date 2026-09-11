@@ -1,0 +1,12 @@
+{
+  "upstream_repository": "https://github.com/NVlabs/GRAIL",
+  "upstream_revision": "aa31d8242ac79b11545b9e3635f73014a227bdfc",
+  "isaaclab_repository": "https://github.com/isaac-sim/IsaacLab",
+  "isaaclab_revision": "37ddf626871758333d6ed89cf64ad702aef127d0",
+  "isaacsim_version": "5.1.0.0",
+  "dataset_repository": "nvidia/PhysicalAI-Robotics-Locomanipulation-GRAIL",
+  "dataset_revision": "40e795761302e611c1e7e3a6caefdd010d56c199",
+  "checkpoint_path": "checkpoint/SONIC/models/terrain_release/last.pt",
+  "checkpoint_sha256": "699b17677fa7e6f98ed4cf3dfb99d2fedb56276116a56f2be593aa756fc00120",
+  "simulation_only": true
+}
