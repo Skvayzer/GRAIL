@@ -1,5 +1,6 @@
 """Synthetic tensor storage tests: no optimizer steps or robot/simulator API."""
 from pathlib import Path
+import copy
 import sys
 import tempfile
 import unittest
@@ -96,3 +97,69 @@ class CheckpointTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "frozen backbone"):
                 save_checkpoint(Path(directory)/"bad.pt", net, wrong, gen, self.contract, updates=0)
+
+    def populated_fixture(self):
+        model, optimizer, gen = self.make()
+        # Construct NONEMPTY moment buffers directly. This checks serialization
+        # and validation, not a claim of a completed optimizer/training update.
+        for parameter in model.parameters():
+            optimizer.state[parameter] = dict(step=torch.tensor(2.),
+                exp_avg=torch.full_like(parameter, .125), exp_avg_sq=torch.full_like(parameter, .03125))
+        return model, optimizer, gen
+
+    def test_nonempty_moments_roundtrip_without_an_optimizer_step(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"synthetic_moments.pt"
+            original = self.populated_fixture()
+            save_checkpoint(path, *original, self.contract, updates=2)
+            restored = self.make(seed=80)
+            self.assertEqual(load_checkpoint(path, *restored, self.contract), 2)
+            a, b = original[1].state_dict(), restored[1].state_dict()
+            self.assertEqual(a["param_groups"], b["param_groups"])
+            for index, moment in a["state"].items():
+                for key, value in moment.items():
+                    torch.testing.assert_close(value, b["state"][index][key], atol=0, rtol=0)
+
+    def test_invalid_moments_fail_before_any_live_state_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"moments.pt"
+            save_checkpoint(path, *self.populated_fixture(), self.contract, updates=2)
+            original = torch.load(path, weights_only=True)
+            def bad_shape(payload):
+                payload["optimizer"]["state"][0]["exp_avg"] = torch.zeros(1)
+            def bad_counter(payload):
+                payload["optimizer"]["state"][0]["step"] = torch.tensor(-1.)
+            def bad_variance(payload):
+                payload["optimizer"]["state"][0]["exp_avg_sq"].fill_(-.1)
+            def bad_hyperparameter(payload):
+                payload["optimizer"]["param_groups"][0]["lr"] *= 100
+            def bad_name_order(payload):
+                payload["optimizer_parameter_names"][0].reverse()
+            def missing_moment(payload):
+                del payload["optimizer"]["state"][0]
+            def wrong_update_count(payload):
+                payload["updates"] = 3
+            for change in (bad_shape, bad_counter, bad_variance, bad_hyperparameter, bad_name_order, missing_moment, wrong_update_count):
+                payload = copy.deepcopy(original)
+                change(payload)
+                bad = Path(directory)/(change.__name__+".pt")
+                torch.save(payload, bad)
+                model, optimizer, gen = self.make(seed=90)
+                before, rng = copy.deepcopy(model.state_dict()), gen.get_state().clone()
+                with self.subTest(change=change.__name__), self.assertRaises(ValueError):
+                    load_checkpoint(bad, model, optimizer, gen, self.contract)
+                self.assertEqual(optimizer.state_dict()["state"], {})
+                self.assertTrue(torch.equal(gen.get_state(), rng))
+                for key, value in before.items():
+                    torch.testing.assert_close(value, model.state_dict()[key], atol=0, rtol=0)
+
+    def test_different_optimizer_type_and_duplicate_parameter_ownership_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"moments.pt"
+            save_checkpoint(path, *self.populated_fixture(), self.contract, updates=2)
+            model, optimizer, gen = self.make()
+            with self.assertRaisesRegex(ValueError, "contract"):
+                load_checkpoint(path, model, torch.optim.AdamW(model.parameters()), gen, self.contract)
+            optimizer.param_groups[0]["params"].append(optimizer.param_groups[0]["params"][0])
+            with self.assertRaisesRegex(ValueError, "exactly"):
+                save_checkpoint(Path(directory)/"duplicate.pt", model, optimizer, gen, self.contract, updates=0)

@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-09-12 — bounded learner engine and simulator-bridge preparation
+
+- Added on-policy residual collection, sampled/executed latent pairing, separate
+  terminal/timeout bootstrap, clipped PPO iteration, gradient limits, KL stop,
+  finite checks and stale-behavior rejection. Default update mode computes and
+  clears gradients without optimizer steps; no automatic learning entry point.
+- Added an opt-in simulator bridge with a frozen decoder clone, pre-reset
+  capture, per-environment history clearing and wrapper-recovery mismatch
+  rejection. It is tested with a fake simulator, not live stochastic Isaac.
+  Existing frozen evaluation commands are not rerouted through it.
+- Extended oracle/state queries to select surviving environments before
+  physical quaternion checks. Invalid terminal observations never enter value
+  evaluation; invalid ongoing/timeout inputs still reject collection.
+- Hardened checkpoint schema v2 with optimizer type/name ordering, fixed
+  hyperparameters, moment/counter checks and validation before live mutation.
+  Nonempty moment fixtures roundtrip; real post-update resume remains untested.
+- All 193 tests pass, including full teacher-dimension CUDA gradients and
+  asynchronous fake-simulator resets. Optimizer calls in tests are either
+  prohibited or no-op spies; **zero real optimizer steps** for this milestone.
+- Frozen four-environment Isaac run `20260911T205918_208015Z_stair_p1_cat_audit`
+  exited 0 with valid outputs: 499 steps, four timeouts, zero failures, unchanged
+  weights, exact actor action parity, selected-batch observation error 0.0,
+  next-state error 2.9802322e-7. No new stochastic actions were applied.
+- Remaining: admissible challenge/retention curriculum, approval-bound launcher,
+  live collector validation, bounded approved update/resume and evaluation.
+  Details and reproducible test commands: `RESIDUAL_ENGINE.md`. No robot access.
+
 ## 2026-09-12 — opt-in avoidance task and rejected posture challenge screen
 
 - Implemented a distinct M2 posture-avoidance reward/termination overlay, leaving

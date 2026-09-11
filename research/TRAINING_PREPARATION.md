@@ -30,6 +30,9 @@ not capabilities to claim from the first training run.
   backbone/observation contract checks. No PhysX state-resume claim.
 - [ ] Runtime optimizer/update loop, post-update checkpoint/resume validation
   and training logs. No real task optimization has been run at this stage.
+  The collection/update engine and opt-in simulator bridge are now implemented;
+  synthetic gradient-only tests pass. Live stochastic integration, launcher and
+  real post-update resume checks remain (`RESIDUAL_ENGINE.md`).
 - [x] Isaac zero-update runtime integration for the static control scene:
   pre-reset timeout observations, per-environment history resets, independent
   transition/GAE audit and 1-/4-environment dry-run checks (`RESIDUAL_RUNTIME.md`).
@@ -95,7 +98,9 @@ The tensor modules do not launch Isaac, load a released actor or apply an
 optimizer step. The separate `--residual-preflight` now integrates privileged
 state sampling and pre-reset capture with the frozen evaluation loop, without
 using learner actions. Its 1-/4-environment results are in `RESIDUAL_RUNTIME.md`.
-An end-to-end CAT trainer still requires the remaining gates above.
+The separate engine/bridge implementation and its precise testing scope are
+in `RESIDUAL_ENGINE.md`. An end-to-end CAT training launch still requires the
+remaining gates above.
 
 ## Posture-avoidance task and current scene status
 

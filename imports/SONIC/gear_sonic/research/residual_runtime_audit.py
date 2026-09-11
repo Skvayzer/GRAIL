@@ -38,6 +38,7 @@ class ResidualRuntimeAudit:
         self.rows, self.current = [], None
         self.completed = torch.zeros(self.env.num_envs, dtype=torch.bool, device=self.env.device)
         self.max_state_error = 0.
+        self.max_selection_error = 0.
         self.report = dict(schema="grail-cat-residual-runtime-preflight-v1", simulation_only=True,
             num_envs=self.env.num_envs, optimizer_steps=0, exploration_enabled=False,
             action_source="untouched released policy.action_mean; learner and clone never supply env.step actions",
@@ -54,6 +55,23 @@ class ResidualRuntimeAudit:
         return self
 
     @torch.no_grad()
+    def _check_selection(self, packet, state, phase_offset=0):
+        selected = torch.arange(self.env.num_envs, device=self.env.device) % 2 == 0
+        part = self.oracle.sample(env_mask=selected)
+        partial_state = self.state.state(env_mask=selected, phase_offset=phase_offset,
+            next_physical=self.state.physical(env_mask=selected) if phase_offset else None)
+        pairs = [(partial_state, state[selected])]+[(part[k], value[selected]) for k, value in packet.items()]
+        for actual, expected in pairs:
+            if actual.dtype == torch.bool:
+                if not torch.equal(actual, expected):
+                    raise ValueError("Selected environment validity differs from full batch")
+            else:
+                error = float((actual-expected).abs().max())
+                self.max_selection_error = max(error, self.max_selection_error)
+                if error > 3e-5:
+                    raise ValueError("Selected environment observation differs from full batch")
+
+    @torch.no_grad()
     def sample(self, buffered_obs, live_actions):
         if self.current is not None or len(self.rows) >= 500:
             raise ValueError("Each runtime sample must pair with exactly one bounded physics step")
@@ -62,6 +80,8 @@ class ResidualRuntimeAudit:
         packet, state = self.oracle.sample(), self.state.state()
         if not packet["valid"].all():
             raise ValueError("Invalid current oracle observation; no silent learning fallback")
+        if not self.rows:
+            self._check_selection(packet, state)
         residual, value = self.learner.deterministic(packet, state)
         if torch.count_nonzero(residual):
             raise ValueError("Preflight only permits the untouched zero-initialized residual")
@@ -89,6 +109,8 @@ class ResidualRuntimeAudit:
         # Failure recovery/invalid-observation training semantics are separate.
         if not packet["valid"].all():
             raise ValueError("Invalid pre-reset oracle observation; cannot invent bootstrap values")
+        if (self.env.reset_terminated | self.env.reset_time_outs).any():
+            self._check_selection(packet, state, phase_offset=1)
         _, value = self.learner.deterministic(packet, state)
         result = dict(next_state=state.detach().clone(), next_value=value.detach().clone(),
             reward=reward.detach().clone(), terminated=self.env.reset_terminated.clone(),
@@ -157,6 +179,7 @@ class ResidualRuntimeAudit:
             completed_envs=self.completed.tolist(), capture_calls=self.tap.calls,
             base_backbone_unchanged=unchanged, learner_unchanged=learner_same,
             actor_action_parity_exact=bool(self.rows), max_nonreset_next_state_error=self.max_state_error)
+        self.report["max_selected_environment_error"] = self.max_selection_error
         self.output.write_text(json.dumps(self.report, indent=2, allow_nan=False)+"\n")
         print(f"RESIDUAL_RUNTIME_PREFLIGHT {self.output} complete={complete}", flush=True)
         if error is None and not complete:

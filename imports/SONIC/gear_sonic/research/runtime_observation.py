@@ -11,6 +11,7 @@ from .body_envelope import world_probe_centers
 from .obstacle_observation import GuidanceSampler, ObstacleObservation
 from .scene_audit import read_snapshot
 from .terrain_surface import TerrainSurface
+from .learner_state import environment_selection
 
 
 class RuntimeObservation:
@@ -41,7 +42,7 @@ class RuntimeObservation:
             layout_sha256=hashlib.sha256(layout_path.read_bytes()).hexdigest(), grid_sha256=layout["grid_sha256"],
             terrain_sha256=self.terrain["sha256"], cat_files=self.cat.fields.meta["files"])
 
-    def sample(self):
+    def sample(self, env_mask=None):
         origin, obj = self.env.scene.env_origins, self.env.scene["object"].data
         expected_pos = origin+origin.new_tensor(self.terrain["live_position"])
         expected_q = origin.new_tensor(self.terrain["live_quaternion_wxyz"])
@@ -49,8 +50,9 @@ class RuntimeObservation:
                 or not torch.allclose((obj.root_quat_w*expected_q).sum(-1).abs(),
                                      torch.ones(self.env.num_envs, device=origin.device), atol=1e-4, rtol=0)):
             raise ValueError("Terrain moved relative to its static oracle snapshot")
-        root = self.robot.data.body_pos_w[:, self.anchor]-origin
-        quaternion = self.robot.data.body_quat_w[:, self.anchor]
+        selected = environment_selection(env_mask, self.env.num_envs)
+        root = self.robot.data.body_pos_w[selected, self.anchor]-origin[selected]
+        quaternion = self.robot.data.body_quat_w[selected, self.anchor]
         centers, radii = world_probe_centers(self.cat.probes, self.robot.body_names,
-            self.robot.data.body_pos_w, self.robot.data.body_quat_w)
-        return self.observer.sample(root, quaternion, centers-origin[:, None, :], radii)
+            self.robot.data.body_pos_w[selected], self.robot.data.body_quat_w[selected])
+        return self.observer.sample(root, quaternion, centers-origin[selected, None, :], radii)

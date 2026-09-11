@@ -88,6 +88,19 @@ class StateTests(unittest.TestCase):
         sampler.history.commit(sampler.physical())
         torch.testing.assert_close(sampler.state(), next_state, rtol=0, atol=0)
         self.assertTrue(torch.equal(before_rng, torch.get_rng_state()))
+        # Terminal rows may be numerically invalid. Selecting surviving rows
+        # must happen BEFORE quaternion/physical validation or reference queries.
+        mask = torch.tensor([False, True])
+        selected = sampler.state(phase_offset=1, next_physical=sampler.physical(mask), env_mask=mask)
+        full = sampler.state(phase_offset=1, next_physical=sampler.physical())
+        torch.testing.assert_close(selected, full[mask], atol=0, rtol=0)
+        data.body_quat_w = data.body_quat_w.clone()  # Physical data is separate from motion-library storage.
+        data.body_quat_w[0] = float("nan")
+        data.joint_pos[0] = float("nan")
+        torch.testing.assert_close(sampler.state(phase_offset=1, next_physical=sampler.physical(mask), env_mask=mask),
+                                   selected, atol=0, rtol=0)
+        with self.assertRaises(ValueError):
+            sampler.physical()
 
 
 class CaptureTests(unittest.TestCase):
