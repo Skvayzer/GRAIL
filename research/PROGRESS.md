@@ -97,3 +97,16 @@
 - M0's initial install/restore/rollout/backward/save gates are now demonstrated.
   A clean-commit confirmation run is next. M1 physical clutter, support/obstacle
   semantics, full-body clearance, and CAT-conditioned learning remain future work.
+
+### Clean-commit confirmation completed
+
+- At clean revision `68382c4`, both the two-update PPO run
+  `20260911T134531_031926Z_stair_p1_training_smoke` and the released-checkpoint
+  stair run `20260911T134556_310014Z_stair_p1_evaluation` exited 0 and passed
+  their audits. Training changed all 43 actor state tensors; actor, critic and
+  optimizer tensors remained finite. The baseline stair metric was unchanged.
+- Ten tooling tests pass; all 18 input artifacts still verify; no unexpected
+  dependency conflicts. Detailed scope, metrics and run IDs: `M0_RESULTS.md`.
+- No training/simulator process is intentionally left running. No real-robot
+  connection, ROS configuration change, actuation, or full avoidance training
+  was performed in this milestone.
