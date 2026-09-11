@@ -42,6 +42,8 @@ The explicit mesh placement, sampled-reference rejection and GRAIL diagnostic
 rollout are documented in [`CAT_GRAIL_INTEGRATION.md`](CAT_GRAIL_INTEGRATION.md).
 Combined terrain/support/passage screening for new layouts is documented in
 [`SCENE_VALIDATION.md`](SCENE_VALIDATION.md).
+Role-aware rigid placement and full-height, explicitly unsigned-terrain oracle
+fields are documented in [`SCENE_COMPOSITION.md`](SCENE_COMPOSITION.md).
 
 ## Desktop commands (from repository root)
 

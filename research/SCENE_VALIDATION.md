@@ -4,6 +4,11 @@ Desktop-only M1 tooling. This does not modify the original CAT generator,
 GRAIL policy, observations, rewards, or physical scene. It is not avoidance
 training, a motion planner for deployment, or a whole-body safety certificate.
 
+The subsequent [SCENE_COMPOSITION.md](SCENE_COMPOSITION.md) adds an **offline**
+explicit-role/rigid-grounding gate and full-height oracle features. It does not
+change the live diagnostic gates below or turn the open terrain into a signed
+solid. The original displayed placement now explicitly fails hurdle retention.
+
 ## What must agree
 
 1. **Coordinates and physical geometry.** Metres, Z-up, WXYZ rotations. Extract
@@ -113,10 +118,12 @@ failed checks and runs no policy-loop steps.
 `geometry_screen_accepted` and `accepted_for_reference_diagnostic` are not
 `avoidance_training_ready`. The latter remains false. Required next gates:
 
-- Explicit obstacle roles, burial/attachment policy and terrain-aware placement;
-  preserve intended hurdles/overhead challenges without blocking the passage.
-- Expand the 3D field domain to the entire terrain/body height and compose
-  forbidden geometry with support/contact semantics, without erasing stairs.
+- Extend explicit roles/rigid placement beyond the supported fixed CAT recipes
+  to traceable random clutter. The new offline composition gate rejects buried
+  challenges and unsuitable rigid grounding; it never silently deforms them.
+- Full-height mesh-distance fields now cover the entire reference, with terrain
+  unsigned distance/support separate. Complete terrain solid/contact semantics
+  and terrain-aware guidance without erasing stairs or inventing free space.
 - Complete articulated terrain/swing-foot and terminal-contact accounting.
 - Verify visual appearance and bounded dynamic traversal for each curriculum
   family, not just one geometric graph or one released reference.

@@ -11,6 +11,22 @@ import warp as wp
 
 
 @wp.kernel
+def _nearest(mesh: wp.uint64, points: wp.array(dtype=wp.vec3), limit: float,
+             distances: wp.array(dtype=float), normals: wp.array(dtype=wp.vec3),
+             valid: wp.array(dtype=wp.int32)):
+    i = wp.tid()
+    hit = wp.mesh_query_point_no_sign(mesh, points[i], limit)
+    if hit.result:
+        closest = wp.mesh_eval_position(mesh, hit.face, hit.u, hit.v)
+        distances[i] = wp.length(points[i]-closest)
+        a = wp.mesh_eval_position(mesh, hit.face, 1., 0.)
+        b = wp.mesh_eval_position(mesh, hit.face, 0., 1.)
+        c = wp.mesh_eval_position(mesh, hit.face, 0., 0.)
+        normals[i] = wp.normalize(wp.cross(b-a, c-a))
+        valid[i] = 1
+
+
+@wp.kernel
 def _rays(mesh: wp.uint64, origins: wp.array(dtype=wp.vec3), directions: wp.array(dtype=wp.vec3),
           limit: float, distances: wp.array(dtype=float), normals: wp.array(dtype=wp.vec3),
           valid: wp.array(dtype=wp.int32)):
@@ -44,6 +60,38 @@ class TerrainSurface:
         self.vertices = torch.as_tensor(vertices.copy(), dtype=torch.float32, device=self.device).contiguous()
         self.faces = torch.as_tensor(faces.copy().ravel(), dtype=torch.int32, device=self.device).contiguous()
         self.mesh = wp.Mesh(points=wp.from_torch(self.vertices, dtype=wp.vec3), indices=wp.from_torch(self.faces))
+
+    def distance(self, points, limit=100.):
+        """Unsigned distance and authored normal to triangles OR explicit ground.
+
+        Works on open meshes. A point below a tread still has POSITIVE distance;
+        this is not a solid-occupancy query, a free-space certificate, or a signed
+        distance gradient. At nearest-face ties the authored normal is ambiguous.
+        """
+        if (points.shape[-1] != 3 or points.dtype != torch.float32
+                or points.device != self.device or not math.isfinite(limit) or limit <= 0):
+            raise ValueError("Expected float32 XYZ points on mesh device and positive limit")
+        shape = points.shape[:-1]
+        finite = torch.isfinite(points).all(-1)
+        p = torch.nan_to_num(points).reshape(-1, 3).contiguous()
+        distances = torch.full((len(p),), float("nan"), device=self.device)
+        normals = torch.full_like(p, float("nan"))
+        valid = torch.zeros(len(p), dtype=torch.int32, device=self.device)
+        if len(p):
+            wp.launch(_nearest, len(p), inputs=[self.mesh.id, wp.from_torch(p, dtype=wp.vec3),
+                limit, wp.from_torch(distances), wp.from_torch(normals, dtype=wp.vec3),
+                wp.from_torch(valid)], device=str(self.device),
+                stream=wp.stream_from_torch() if self.device.type == "cuda" else None)
+        distances, normals, valid = distances.reshape(shape), normals.reshape(*shape, 3), valid.reshape(shape).bool()
+        if self.ground_z is not None:
+            plane = (points[..., 2]-self.ground_z).abs()
+            use_ground = finite & (plane <= limit) & (~valid | (plane < distances))
+            distances = torch.where(use_ground, plane, distances)
+            normals = torch.where(use_ground[..., None], points.new_tensor([0., 0., 1.]), normals)
+            valid |= use_ground
+        valid &= finite
+        return (torch.where(valid, distances, float("nan")),
+                torch.where(valid[..., None], normals, float("nan")), valid)
 
     def raycast(self, origins, directions, limit=100.):
         if (origins.shape != directions.shape or origins.shape[-1] != 3

@@ -1,5 +1,40 @@
 # Progress
 
+## 2026-09-11 — feature-preserving placement and full-height oracle fields
+
+- Added explicit floor/lateral/overhead replay for 20 pinned CAT fixed-scene
+  recipes, requiring their union to match cached occupancy exactly. Connected
+  hurdles/posts retain separate roles. Unknown/random role provenance rejects
+  explicitly; the original generator and scene files remain unchanged.
+- Added optional rigid grounding from all footprint cell centres/corners.
+  Uneven/missing/downward support rejects rather than warping or burying clutter.
+  Separate role-retention checks preserve datum and exposed feature height;
+  overhead fixtures are explicit, not silently converted to support.
+- Added exact **unsigned** distance to open terrain/ground and full-height
+  simulation-oracle feature volumes, alongside exact signed CAT distances.
+  Treads/risers stay present in the surface band. There is no fabricated terrain
+  inside/outside, free-space certificate, sensor-observation claim or extended
+  flat CAT guidance. Exact mesh distances remain the reference-clearance gate.
+- New offline tool `research/compose_scene.py`; source/output hashes, placement,
+  source revision/dirty state, runtime versions, interpolation errors and
+  rejection reasons are retained. Contract/results: `SCENE_COMPOSITION.md`.
+- Original displayed scene: full reference field coverage increased from
+  74.4605% to 100% (51,896 samples; 56 x 74 x 72 cells). Maximum discrepancies
+  from exact queries: <1.95 cm CAT and <1.71 cm terrain, at 4 cm resolution.
+  New retention gate rejects the buried hurdle despite the prior path passing.
+- Grounded landing placement (0,0.2,0), yaw pi/2: 354 footprint queries, zero
+  support spread, roles retained, but 70 reference frames violate the 3 cm
+  cover margin (minimum gap -0.0430 m). Correctly exported as rejected, exit 2.
+  This separates valid scene geometry from an unchanged tracker failing to
+  negotiate the challenge. Clear control beyond the endpoint (0,1.2,0) passes
+  the cached screen, exit 0; it is not a hurdle-crossing result.
+- 61 tests pass (nine new), including CPU/CUDA parity, unsigned open-surface
+  normals, missing support, role union/tamper rejection, grounding, full sphere
+  extent coverage, and unknown/XYZ interpolation. One initial test used an
+  overly strict decimal assertion for float32 ray height; it now uses 1e-6 m.
+  No new dependencies, environment conflicts, GUI/simulation launches, policy
+  training, ROS changes or robot connections. `avoidance_training_ready=false`.
+
 ## 2026-09-11 — combined terrain/support/passage validation
 
 - Stopped the user's repeating stair/CAT viewer; no GUI was left running.

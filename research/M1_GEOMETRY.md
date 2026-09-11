@@ -6,6 +6,10 @@ not remove the outstanding terrain/support/terminal-contact gates below.
 The later [SCENE_VALIDATION.md](SCENE_VALIDATION.md) adds live triangle-surface
 support extraction and conservative passage screening; it does not complete
 articulated terrain contact or avoidance-training validation.
+The newer [SCENE_COMPOSITION.md](SCENE_COMPOSITION.md) adds explicit fixed-CAT
+roles, rigid grounding and full-height signed-clutter/unsigned-terrain oracle
+features. Open terrain is still not given an invented signed volume; contact
+permissions and random-clutter role provenance remain separate work.
 
 Desktop simulation only. No new policy training, deployed observation interface,
 robot SDK, ROS changes or actuation. The original terrain checkpoint stays

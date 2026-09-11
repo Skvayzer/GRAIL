@@ -25,12 +25,8 @@ def read_snapshot(run):
         return data["vertices"], data["faces"], meta
 
 
-def check(run, directory, placement, device="cpu", limits=LayoutLimits()):
-    run, directory = Path(run), Path(directory)
-    vertices, faces, terrain = read_snapshot(run)
-    surface = TerrainSurface(vertices, faces, ground_z=terrain["ground"]["height"], device=device)
-    fields = CatFields(directory, placement, device)
-    clutter = ClosedMeshDistance(*cat_mesh_arrays(directory), device=device)
+def read_reference(run):
+    run = Path(run)
     prior = json.loads((run / "cat_audit.json").read_text())
     if prior["schema"] != "grail-cat-reference-audit-v1":
         raise ValueError("Unvalidated reference snapshot")
@@ -39,6 +35,21 @@ def check(run, directory, placement, device="cpu", limits=LayoutLimits()):
         raise ValueError("Reference sweep checksum mismatch")
     with np.load(sweep_path, allow_pickle=False) as data:
         anchors, centers, radii, links = data["anchors"], data["centers"], data["radii"], data["links"].tolist()
+    if (centers.ndim != 3 or centers.shape[-1] != 3 or not len(centers)
+            or anchors.shape != (len(centers), 3) or radii.shape != (centers.shape[1],)
+            or len(links) != len(radii) or not np.isfinite(centers).all()
+            or not np.isfinite(anchors).all() or not np.isfinite(radii).all() or (radii <= 0).any()):
+        raise ValueError("Invalid cached reference geometry")
+    return anchors, centers, radii, links
+
+
+def check(run, directory, placement, device="cpu", limits=LayoutLimits()):
+    run, directory = Path(run), Path(directory)
+    vertices, faces, terrain = read_snapshot(run)
+    surface = TerrainSurface(vertices, faces, ground_z=terrain["ground"]["height"], device=device)
+    fields = CatFields(directory, placement, device)
+    clutter = ClosedMeshDistance(*cat_mesh_arrays(directory), device=device)
+    anchors, centers, radii, links = read_reference(run)
     gaps = []
     for batch in torch.as_tensor(centers, device=device).split(128):
         d, _, valid = clutter.query(placement.to_local(batch))
