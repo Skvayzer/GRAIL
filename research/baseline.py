@@ -66,7 +66,7 @@ def scene_overrides(run, data, stem, num_envs):
 
 def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
                        cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False, contact_audit=False,
-                       observation_shadow=False):
+                       observation_shadow=False, record_video=False):
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
@@ -99,6 +99,32 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
         if not layout_audit or gui:
             raise ValueError("Observation shadow requires headless single-environment layout audit")
         overrides["research_observation_shadow_output"] = str(run / "observation_shadow.json")
+    if record_video:
+        if gui or num_envs != 1:
+            raise ValueError("Recorded evaluation requires one headless environment")
+        overrides.update({
+            "manager_env.config.render_results": True,
+            "manager_env.config.render_width": 1280,
+            "manager_env.config.render_height": 720,
+            "manager_env.config.render_frame_skip": 2,
+            "manager_env.config.max_render_envs": 1,
+            "manager_env.commands.motion.debug_vis": False,
+            "manager_env.config.render_text_outline": True,
+            "manager_env.config.eval_camera_offset": [2.5, -3., 1.8],
+            "manager_env.config.render_info": [[
+                "Frozen GRAIL terrain controller | desktop simulation",
+                "CAT clutter present; avoidance adapter NOT controlling actions" if cat_scene else
+                "Released terrain policy; no new training",
+            ]],
+            "manager_env.recorders.render_envs._target_":
+                "gear_sonic.envs.manager_env.mdp.recorders.RenderEnvsRecorderCfg",
+            "manager_env.recorders.render_envs.video_save_path": str(run / "video"),
+            "manager_env.recorders.render_envs.video_quality": 7,
+            # Video-only recorder must never use Isaac's shared default HDF5
+            # path (/tmp/isaaclab/logs/dataset.hdf5), which may belong to others.
+            "manager_env.recorders.dataset_export_dir_path": str(run / "video"),
+            "manager_env.recorders.dataset_export_mode": 0,
+        })
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -113,6 +139,8 @@ def main():
     parser.add_argument("--num-envs", type=int, choices=range(1, 17), default=1)
     parser.add_argument("--execute", action="store_true", help="Run desktop physics, never robot control")
     parser.add_argument("--gui", action="store_true", help="Interactive repeating policy demo, not a metrics run")
+    parser.add_argument("--record-video", action="store_true",
+                        help="Record headless frozen-policy evaluation to MP4; one environment, never training")
     parser.add_argument("--clutter-audit", action="store_true",
                         help="One bounded stair reference with physical side clutter; no training or avoidance claim")
     parser.add_argument("--cat-scene", type=Path, help="Opt-in CAT mesh/reference audit; no new learning")
@@ -134,6 +162,8 @@ def main():
         parser.error("--timeout must be positive")
     if args.gui and args.training_smoke:
         parser.error("--gui is for the released-policy demo, not training")
+    if args.record_video and (args.gui or args.training_smoke or args.num_envs != 1):
+        parser.error("--record-video requires one headless evaluation environment, not training")
     if args.layout_audit and (not args.cat_scene or args.num_envs != 1):
         parser.error("--layout-audit needs --cat-scene and --num-envs 1")
     if args.contact_audit and (not args.layout_audit or args.gui or args.training_smoke):
@@ -185,7 +215,7 @@ def main():
                                      gui=args.gui, clutter_audit=args.clutter_audit, cat_scene=args.cat_scene,
                                      cat_translation=args.cat_translation, cat_yaw=args.cat_yaw,
                                      layout_audit=args.layout_audit, contact_audit=args.contact_audit,
-                                     observation_shadow=args.observation_shadow)
+                                     observation_shadow=args.observation_shadow, record_video=args.record_video)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -292,6 +322,17 @@ def main():
         except Exception as error:
             record["audit_error"] = f"{type(error).__name__}: {error}"
     record["outputs_valid"] = outputs_valid
+    if args.record_video:
+        from demo_video import inspect_video
+        try:
+            videos = sorted((run / "video").glob("*.mp4"))
+            if len(videos) != 1:
+                raise ValueError("Expected exactly one evaluation video")
+            record["video"] = inspect_video(videos[0])
+        except Exception as error:
+            record["video_error"] = str(error)
+            outputs_valid = False
+        record["outputs_valid"] = outputs_valid
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     print(json.dumps({"status": record["status"], "exit_code": record["exit_code"],
                       "outputs_valid": outputs_valid, "log": str(run / "process.log")}))

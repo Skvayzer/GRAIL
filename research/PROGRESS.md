@@ -1,5 +1,47 @@
 # Progress
 
+## 2026-09-11 — review videos and residual learning components (no training)
+
+- Added `baseline.py --record-video`: single-environment headless frozen-policy
+  recording, separate from GUI/training. Pins 1280x720/25 fps, readable opt-in
+  captions and hidden reference debug markers. Recorder output is run-local;
+  HDF5 export is disabled rather than using Isaac's shared `/tmp/isaaclab` file.
+  An initial CLI syntax failure and a shared-default-path failure were retained
+  in their own runs; the failed owned simulator was terminated. Other users'
+  temporary data was not modified.
+- Camera run `20260911T193059_716652Z_stair_p1_cat_audit` exited 0, outputs valid:
+  249 decoded video frames, 499/499 valid obstacle packets, exact zero-residual
+  action parity and unchanged actor/adapter weights. No failure termination;
+  minimum sampled CAT cover gap 0.404890 m. This is the original controller
+  descending stairs beside sparse CAT lateral fixtures, not learned avoidance.
+- Added checksummed offline MP4 visualizations of the corrected guidance and
+  3D/per-body obstacle inputs. Before/after uses the identical saved pelvis
+  trajectory and validates source hashes; 334/499 -> 499/499 valid frames.
+  Both diagnostic videos have 300 decoded frames / 12 s, with one-second holds.
+  Camera video is a separate evaluation, not frame-synchronized with them.
+- Three labeled videos, previews, descriptions and provenance are packaged at
+  `~/Desktop/GRAIL_CAT_review_20260911_v2.zip` (~7.2 MiB). Archive integrity and
+  full MP4 decoding checked; sampled camera frames visually inspected. No
+  Viser/web listener or firewall change. See `REVIEW_DEMOS.md`.
+- Added tensor-only residual actor/obstacle-aware critic, pre-tanh stochastic
+  latent contract, pure clipped-PPO loss, reset-aware GAE, detached bounded
+  rollout storage and contract-bound learner/RNG checkpoint helpers. The
+  existing shadow adapter retains its state keys and zero-residual behavior.
+  Parameters receive test gradients but **no optimizer steps** were applied.
+- Tests verify exploration RNG isolation/replay, zero deterministic mean,
+  invalid-input rejection, timeout-versus-terminal bootstrap, target detachment,
+  clipping signs, time/env ordering, no-overwrite saves and zero-update checkpoint
+  roundtrip. Checkpoint resume resets simulator episodes; no exact PhysX-resume
+  claim or post-update optimizer-resume validation yet. Core commit `2d20ae2`.
+- All 142 tests pass, including 19 new tests. A nonfatal imageio/ffmpeg pipe
+  ResourceWarning appears during synthetic video validation; decoded outputs
+  pass. The owned simulator processes exited; no real robot was accessed.
+- Remaining before the first approved learning pilot: integrate the runtime
+  update loop and pre-reset final observations, avoidance-specific rewards and
+  terminations, genuinely challenging/held-out layouts, approval-bound launcher,
+  and 1-/4-environment no-update preflight. **Training has not started.** Full
+  preparation remains in progress; tracked in `TRAINING_PREPARATION.md`.
+
 ## 2026-09-11 — checked pelvis-to-support guidance connections
 
 - Fixed the new guidance sampler's support/transit mismatch. The moving pelvis

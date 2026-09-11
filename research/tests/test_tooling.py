@@ -41,6 +41,23 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_video_is_opt_in_evaluation_only(self):
+        from hydra.core.override_parser.overrides_parser import OverridesParser
+        ordinary = evaluation_command(Path("/run"), Path("/data"), "fixture", 1)
+        self.assertIn("++manager_env.config.render_results=false", ordinary)
+        video = evaluation_command(Path("/run"), Path("/data"), "fixture", 1, record_video=True)
+        self.assertIn("++manager_env.config.render_results=true", video)
+        self.assertTrue(any("RenderEnvsRecorderCfg" in arg for arg in video))
+        self.assertIn("++manager_env.recorders.dataset_export_mode=0", video)
+        self.assertIn('++manager_env.recorders.dataset_export_dir_path="/run/video"', video)
+        self.assertIn("gear_sonic.eval_agent_trl", video)
+        # Dict JSON is not Hydra override syntax. Parse the real CLI values,
+        # not just substring checks, without starting Isaac.
+        OverridesParser.create().parse_overrides([arg for arg in video if arg.startswith("++")])
+        for options in (dict(num_envs=2), dict(num_envs=1, gui=True)):
+            with self.assertRaises(ValueError):
+                evaluation_command(Path("/run"), Path("/data"), "fixture", record_video=True, **options)
+
     def test_clutter_is_opt_in_bounded_and_not_training(self):
         command = evaluation_command(Path("/run"), Path("/run/data/stair_p1"), "fixture", 1,
                                      clutter_audit=True)

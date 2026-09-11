@@ -58,6 +58,12 @@ The stair-edge pelvis/support mismatch and checked transit-root correction are
 documented in [PELVIS_GUIDANCE.md](PELVIS_GUIDANCE.md), with 499-frame recovery,
 independent connector checks and unchanged-action simulation confirmation.
 
+Laptop-friendly recordings and reproduction commands are in
+[`REVIEW_DEMOS.md`](REVIEW_DEMOS.md). Training preparation, including the new
+tensor-only residual actor/critic, PPO/GAE and learner checkpoint components,
+is tracked in [`TRAINING_PREPARATION.md`](TRAINING_PREPARATION.md). These are not
+yet an integrated avoidance trainer; actual training awaits the user's review.
+
 ## Desktop commands (from repository root)
 
 ```bash

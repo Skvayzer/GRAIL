@@ -143,13 +143,17 @@ class RenderEnvsRecorderTerm(recorder_manager.RecorderTerm):
                 # Add text overlay if render info is provided
                 if cur_render_info is not None and i < len(cur_render_info):
                     for j, text in enumerate(cur_render_info[i]):
+                        outlined = self.env.wrapper.config.get("render_text_outline", False)
+                        if outlined:
+                            frame = cv2.putText(frame, str(text), (10, 30 + j * 25),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3, cv2.LINE_AA)
                         frame = cv2.putText(
                             frame,
                             str(text),
                             (10, 30 + j * 25),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
-                            (0, 0, 0),
+                            (255, 255, 255) if outlined else (0, 0, 0),
                             1,
                         )
 

@@ -36,7 +36,8 @@ not capabilities to claim from the first training run.
   anchor tracking must not forbid intended detours. Do not treat provisional
   stair contact-phase labels as validated reward targets.
 - [ ] Explicit training approval/configuration gate, defaulting to no updates.
-- [ ] Several actual MP4 review demos, provenance and laptop-copy instructions.
+- [x] Three actual MP4 review demos, provenance and laptop-copy instructions
+  (`REVIEW_DEMOS.md`). These show the integration control, not a trained avoider.
 - [ ] Final preflight report and exact pilot/evaluation/resume commands.
 - [ ] User has reviewed the demos and approved the first training run.
 
