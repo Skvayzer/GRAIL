@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-09-11 — interactive CAT clutter gallery
+
+- Generated fresh scenes with unchanged pinned CAT code: random seed 42,
+  difficulty 0.2 (`20260911T142935_132257Z_cat_scene_random`, 16,966 occupied
+  cells), and the typical combined scene
+  (`20260911T142936_467194Z_cat_scene_side-hurdle-crouch2`, 5,628 cells).
+- Added `research/cat_viewer.py`: a bounded GUI supervisor, checksummed source
+  scenes, translation-only gallery layout, static physical meshes, lighting,
+  camera reset, source provenance, and automatic viewport screenshot. Start/goal
+  markers are visual-only projections, not obstacles or policy inputs.
+- First GUI attempt depended on an optional, unloaded window-title extension
+  and failed. Removed that unnecessary dependency, caught worker exceptions,
+  and require `viewer_ready.json` before accepting a successful GUI exit.
+  The earlier run's zero exit code alone was not valid visualization evidence.
+- `20260911T143131_626282Z_cat_gallery` loaded both meshes and wrote
+  `viewer_ready.json` and `overview.png`. Visually inspected that actual Isaac
+  viewport capture: random clutter and the typical passage/overhead geometry
+  are visible. Development run provenance correctly records a dirty worktree.
+- All 31 unit tests passed; viewer dry-run verifies scenes without starting Kit.
+  The GUI is intentionally left open for inspection, with a one-hour lifetime
+  limit. No robot, policy inference, avoidance training or ROS was started.
+
 ## 2026-09-11 — actual CAT generator reuse and Isaac export
 
 - Exporter implementation committed/pushed as `568233f`. Clean confirmation

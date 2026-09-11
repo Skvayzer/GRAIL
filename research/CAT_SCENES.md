@@ -94,6 +94,32 @@ in both directions along all three axes, then drives a simulation-only sphere
 into a planar patch and checks measured contact. Headless scene-query support
 is explicitly enabled. It is not a robot movement command or a walking test.
 
+### Interactive Isaac Sim gallery
+
+To open one or two generated scenes on the desktop (repeat `--scene` for up to
+four), use the directories printed by the generator:
+
+```bash
+.venv/bin/python research/cat_viewer.py \
+  --scene research/runs/YOUR_RANDOM_SCENE_DIRECTORY \
+  --scene research/runs/YOUR_TYPICAL_SCENE_DIRECTORY \
+  --execute --accept-isaac-eula --timeout 3600
+```
+
+This is a static physical-clutter gallery, **not a trained avoidance rollout**.
+The gallery translates volumes apart with a one-metre gap, without changing
+their scale or source assets. Orange is the first scene; cyan is the second.
+Green/red visual markers show start/goal projected onto the floor, not the
+original 0.75 m-high field coordinates. They have no collision or task role.
+The legend includes a camera reset button. The saved `gallery.usda`, scene
+provenance, screenshot `overview.png`, and process log live in a new
+`research/runs/*_cat_gallery` directory. That gallery USD references local scene
+files; share the source scenes as well if moving it to another computer.
+
+Close the window or press Ctrl-C in its launching terminal to stop. A one-hour
+default timeout also stops only this viewer's child process group. No robot,
+policy, ROS, navigation, or livestream server is started by the viewer.
+
 ## Evidence and next gate
 
 - 29 unit tests passed with fetched upstream source (none skipped).
