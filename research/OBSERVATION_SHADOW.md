@@ -145,6 +145,19 @@ passed action parity, but its offline geometry replay rejected the TF32/batch
 precision discrepancy described above. That recording remains unchanged as
 evidence; it is not accepted as a geometry-reproducible observation dataset.
 
+After the fix, clean revision `200144e` completed
+`20260911T185640_513446Z_stair_p1_cat_audit`: 499 exact action checks, unchanged
+backbone/adapter hashes, finite head gradient 0.11696785, and identical sampled
+clearances and complete contact payload hash to the earlier no-shadow run.
+No extra physics steps or failure termination. All 113 tests pass.
+
+Independent replay of the final packet passed on both devices at that clean
+revision. CUDA run `20260911T185752_319799Z_observation_replay` reproduced all
+features exactly; CPU run `20260911T185800_161438Z_observation_replay` had maximum
+normalized errors of 1.78814e-7 (volume), 1.49012e-7 (probes), and 5.96046e-8
+(guidance), below the unchanged 2e-5 tolerance. Masks match exactly. These are
+reproducibility checks on one reference, not obstacle-avoidance success metrics.
+
 All geometry queries were valid, but guidance was valid for only 334/499 frames.
 Every invalid frame projected the pelvis into a cell that fails the small
 support-patch test even though transit is clear. This is expected at tread

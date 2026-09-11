@@ -42,8 +42,24 @@
   with explicit float32 products, leaving all actor precision settings intact.
   A new non-axis-yaw regression failed before the fix and exercises CPU/CUDA,
   TF32 on/off and batches 1/16. The 2e-5 replay tolerance was not relaxed.
-  A new clean run/replay remains to confirm the fix. Prior recordings are
-  retained, not regenerated in place. Commands: `OBSERVATION_SHADOW.md`.
+  Prior recordings are retained, not regenerated in place.
+- Clean `200144e` confirmation:
+  `20260911T185640_513446Z_stair_p1_cat_audit` exited 0 with valid outputs,
+  499 exact action-parity frames, unchanged weights and head-gradient norm
+  0.11696785. Its complete contact payload hash, classification counts and
+  sampled clearance sequence/minima exactly match the no-shadow reference.
+  Shadow sampling averaged 9.01 ms, maximum 34.24 ms; not an end-to-end timing
+  or avoidance-performance benchmark.
+- Independent replay of all 499 frames passed at clean `200144e`:
+  CUDA `20260911T185752_319799Z_observation_replay` reproduced every feature
+  exactly; CPU `20260911T185800_161438Z_observation_replay` had maximum errors
+  1.78814e-7 / 1.49012e-7 / 5.96046e-8 in volume/probe/guidance normalized
+  channels. Validity masks match exactly on both devices. 113 tests pass.
+- Next: bounded transit-to-support guidance for the moving pelvis (334/499
+  frames valid remains unchanged), genuinely avoidance-demanding placements,
+  and reviewed contact semantics before a bounded residual-learning trial.
+  The owned simulator exited. No policy training or robot changes in this
+  milestone. Commands and limitations: `OBSERVATION_SHADOW.md`.
 
 ## 2026-09-11 — random role provenance and terrain-aware diagnostic guidance
 
