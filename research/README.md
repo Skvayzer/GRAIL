@@ -81,6 +81,18 @@ Original downloaded files retain their upstream checksums.
 
 ## Evidence and the training smoke test
 
+For a repeating live Isaac Lab window using the released stair policy:
+
+```bash
+.venv/bin/python research/baseline.py --family stair_p1 --gui --execute --timeout 3600
+```
+
+First use still requires the license acceptance described above. `--gui` disables
+the one-shot metrics callback, repeats the reference after episode reset, and
+paces execution to no faster than real time. Close the Isaac Sim window to exit;
+the launcher also enforces the supplied wall-clock timeout. GUI demos do not
+produce benchmark metrics and cannot be combined with `--training-smoke`.
+
 Each run retains its configuration, package versions, process log and audit JSON.
 Evaluation validates finite trajectories and strict actor restoration separately
 from the reference clip's success/failure. `trajectory.json` records environment

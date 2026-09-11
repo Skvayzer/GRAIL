@@ -110,3 +110,14 @@
 - No training/simulator process is intentionally left running. No real-robot
   connection, ROS configuration change, actuation, or full avoidance training
   was performed in this milestone.
+
+### Interactive stair demonstration
+
+- Added `baseline.py --gui`: a repeating, paced live simulation using the
+  released terrain checkpoint, without the one-shot evaluation exit callback.
+  GUI mode is separate from benchmark metrics and from training smoke mode.
+- Launched and visually verified the G1 and stair geometry in Isaac Sim 5.1.0.
+  First GUI renderer startup took roughly 90 seconds; it then loaded the actor
+  and began the stair sequence. The window is intentionally left open for the
+  user, with a one-hour wall-clock limit and close-window exit handling.
+- Eleven tooling tests pass. This remains desktop-only, without robot access.

@@ -64,10 +64,14 @@ def scene_overrides(run, data, stem, num_envs):
     }
 
 
-def evaluation_command(run, data, stem, num_envs):
+def evaluation_command(run, data, stem, num_envs, gui=False):
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
+    if gui:
+        overrides.update(headless=False, eval_callbacks=[], run_eval_loop=True,
+                         realtime=True, run_once=False,
+                         viewer_eye=[4.0, 4.0, 3.0], viewer_target=[0.0, 0.3, 1.0])
     command = [str(REPO_ROOT / ".venv/bin/python"), "-m", "gear_sonic.eval_agent_trl",
                f"checkpoint={run / 'checkpoint/last.pt'}"]
     for key, value in overrides.items():
@@ -81,6 +85,7 @@ def main():
     parser.add_argument("--family", choices=["stair_p1", "curb", "slope", "sitting"], default="stair_p1")
     parser.add_argument("--num-envs", type=int, choices=range(1, 17), default=1)
     parser.add_argument("--execute", action="store_true", help="Run desktop physics, never robot control")
+    parser.add_argument("--gui", action="store_true", help="Interactive repeating policy demo, not a metrics run")
     parser.add_argument("--training-smoke", action="store_true",
                         help="Two PPO updates on a disposable checkpoint, not a full training run")
     parser.add_argument("--accept-isaac-eula", action="store_true",
@@ -89,6 +94,8 @@ def main():
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+    if args.gui and args.training_smoke:
+        parser.error("--gui is for the released-policy demo, not training")
     if args.execute and not args.accept_isaac_eula:
         package = importlib.metadata.distribution("isaacsim")
         accepted = Path(package.locate_file("isaacsim/kit/EULA_ACCEPTED"))
@@ -103,7 +110,7 @@ def main():
     for item in manifest["files"]:
         verify_file(ROOT / "artifacts" / safe_path(item["path"]), item)
     scene = next(x for x in manifest["scenes"] if x["family"] == args.family)
-    kind = "training_smoke" if args.training_smoke else "evaluation"
+    kind = "training_smoke" if args.training_smoke else ("gui_demo" if args.gui else "evaluation")
     run = ROOT / "runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ") + "_" + args.family + "_" + kind)
     run.mkdir(parents=True, exist_ok=False)
     data = prepare_data(manifest, args.family, run)
@@ -115,7 +122,7 @@ def main():
         from training_smoke import training_command
         command = training_command(run, scene_overrides(run, data, scene["stem"], args.num_envs))
     else:
-        command = evaluation_command(run, data, scene["stem"], args.num_envs)
+        command = evaluation_command(run, data, scene["stem"], args.num_envs, gui=args.gui)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -176,6 +183,9 @@ def main():
                 report = audit_training(run)
                 record["training_audit"] = report
                 outputs_valid = report["passed"]
+            elif args.gui:
+                record["note"] = "Interactive demo closed; no benchmark metrics expected"
+                outputs_valid = True
             else:
                 from evaluation_audit import audit_evaluation
                 report = audit_evaluation(run)

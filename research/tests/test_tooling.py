@@ -41,6 +41,14 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_gui_repeats_without_one_shot_evaluation_callback(self):
+        command = evaluation_command(Path("/run"), Path("/run/data/stair_p1"), "fixture", 1, gui=True)
+        self.assertIn("++headless=false", command)
+        self.assertIn("++eval_callbacks=[]", command)
+        self.assertIn("++run_eval_loop=true", command)
+        self.assertIn("++realtime=true", command)
+        self.assertIn("++run_once=false", command)
+
     def test_hydra_flags_do_not_reach_kit(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("--headless", action="store_true")

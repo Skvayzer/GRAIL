@@ -586,9 +586,13 @@ def main(override_config: omegaconf.OmegaConf):
         callback.on_step_end(args, state, None, env=env, model=model, accelerator=accelerator)
 
     if config.get("run_eval_loop", True):
+        import time
         env.set_is_evaluating(True)
         obs_dict = env.reset_all()
         model.eval()
+        model.policy.eval_mode()
+        if not args_cli.headless and config.get("viewer_eye") is not None:
+            env.env.sim.set_camera_view(config.viewer_eye, config.viewer_target)
         for obs_key in obs_dict:
             obs_dict[obs_key] = obs_dict[obs_key].to(device)
 
@@ -607,7 +611,8 @@ def main(override_config: omegaconf.OmegaConf):
         envs_completed = torch.zeros(config.num_envs, dtype=torch.bool, device=device)
 
         with torch.no_grad():
-            while True:
+            while simulation_app.is_running():
+                frame_start = time.perf_counter()
                 policy_model = model.policy
                 value_model = model.value_model
                 policy_model.init_rollout()
@@ -655,6 +660,11 @@ def main(override_config: omegaconf.OmegaConf):
 
                 for obs_key in obs_dict.keys():  # noqa: SIM118
                     obs_dict[obs_key] = obs_dict[obs_key].to(device)
+
+                if config.get("realtime", False):
+                    remaining = env.env.step_dt - (time.perf_counter() - frame_start)
+                    if remaining > 0:
+                        time.sleep(remaining)
 
     if simulator_type == "IsaacSim":
         os._exit(0)
