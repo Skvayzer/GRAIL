@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-09-11 — checked pelvis-to-support guidance connections
+
+- Fixed the new guidance sampler's support/transit mismatch. The moving pelvis
+  is a temporary transit root with bounded, fully cell-checked connections to
+  existing goal-reachable support nodes. No changes to support masks, graph
+  edges, geometry, actor inputs, rewards, policy weights or control source.
+- Closed segment/cell intersection includes corner touches and boundaries;
+  preserves 28 cm stride and 20 cm height-excursion bounds. Explicit unknown,
+  blocked, out-of-grid and unsupported-target rejection. Shortest total cost
+  with deterministic lookahead ties avoids steering back into the current cell.
+- Versioned packet/connection semantics and recorded connection witnesses;
+  old packets are preserved, not relabeled. New offline comparison verifies
+  source checksums, CPU/CUDA and GPU batches 1/16, and every accepted connector
+  with a separate scalar intersection implementation.
+- Development `20260911T190949_101780Z_pelvis_guidance_audit`: recovered all
+  165 formerly invalid stair frames, 499/499 now valid, no lost valid frames;
+  all 499 independent connector checks passed. Maximum XY connection 0.278362 m,
+  maximum CPU/GPU packed-feature error 2.03e-6. All 123 tests pass, including
+  ten new connector tests and an updated blocked-source regression. Fresh clean-commit physics and
+  observation replay verification pending. Scope/commands: `PELVIS_GUIDANCE.md`.
+
 ## 2026-09-11 — obstacle observation interface and zero-residual shadow adapter
 
 - Added yaw-only, pelvis-centred 3D oracle samples: 13 x 13 x 11 at 16 cm,

@@ -12,6 +12,7 @@ import torch
 
 from .layout_validation import LayoutLimits
 from .support_guidance import SupportGraph
+from .pelvis_guidance import PelvisGraphAttachment
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class ObservationSpec:
                                "graph_cost/goal_scale", "valid", "at_goal_cell"],
             query="exact mesh oracle at sparse sample points; not downsampled occupancy or LiDAR",
             invalid="numeric zero accompanied by validity zero; adapter output gate false",
+            guidance_algorithm=PelvisGraphAttachment.VERSION,
             support_permission=False, terrain_solid_sign_known=False)
 
 
@@ -95,31 +97,21 @@ class GuidanceSampler:
                              transit=arrays["transit_valid"], max_stride=limits.max_stride)
         goal = meta["support_graph"]["endpoint_grid_indices"][1]
         field = graph.goal_field(goal)
-        self.goal_cell = torch.tensor(goal, device=device)
         self.goal = torch.tensor([*xy[tuple(goal)], h[tuple(goal)]], dtype=torch.float32, device=device)
-        self.height = torch.as_tensor(h.copy(), dtype=torch.float32, device=device)
-        self.reachable = torch.as_tensor(field["reachable"], device=device)
-        self.direction = torch.as_tensor(field["direction"], dtype=torch.float32, device=device)
-        self.cost = torch.as_tensor(field["goal_cost"], dtype=torch.float32, device=device)
+        self.attachment = PelvisGraphAttachment(h, arrays["transit_valid"], field["reachable"], field["goal_cost"],
+            meta["support_graph"]["xy_origin"], goal, limits, device)
 
     def sample(self, root, rotation, surface, scale):
-        index = torch.round((root[:, :2]-self.origin)/self.resolution).long()
-        shape = index.new_tensor(self.height.shape)
-        in_bounds = ((index >= 0) & (index < shape)).all(-1)
-        # Clamped indices are used only for safe gathering; mask remains false
-        # out of bounds. There is NO nearest-walkable-cell search or fallback.
-        safe = torch.minimum(index.clamp_min(0), shape-1)
-        i, j = safe.unbind(-1)
         support, _, known = surface.support_below(root, max_drop=2.)
-        valid = in_bounds & known & self.reachable[i, j]
-        valid &= (support-self.height[i, j]).abs() <= self.max_step
+        self.last_attachment = self.attachment.sample(root, support, known)
+        valid = self.last_attachment["valid"]
         delta = self.goal-root
         delta[:, 2] = self.goal[2]-support
         local_delta = rotate_vectors(rotation.transpose(1, 2), delta)
-        local_direction = rotate_vectors(rotation.transpose(1, 2), self.direction[i, j])
+        local_direction = rotate_vectors(rotation.transpose(1, 2), self.last_attachment["direction"])
         data = torch.cat(((local_delta/scale).clamp(-1., 1.), local_direction,
-                          (self.cost[i, j]/scale).clamp(0., 1.)[:, None], valid[:, None],
-                          (valid & (index == self.goal_cell).all(-1))[:, None]), -1)
+                          (self.last_attachment["cost"]/scale).clamp(0., 1.)[:, None], valid[:, None],
+                          self.last_attachment["at_goal"][:, None]), -1)
         data = torch.where(valid[:, None], data, 0.)
         if not torch.isfinite(data).all():
             raise ValueError("Nonfinite valid guidance")

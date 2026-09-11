@@ -38,12 +38,13 @@ converted to clearance/contact permissions because stance and riser semantics
 are not yet validated for RL.
 
 Guidance contains local goal XYZ delta / 5 m (Z is the difference in support
-height, not goal-ground minus pelvis height), unit next-node XYZ direction,
-graph cost / 5 m, valid, at-goal-cell. Nearest grid cell is used only within the
-grid and when that cell is reachable/supported with compatible support height.
-There is no search for a more convenient walkable cell, no clamp-to-edge
-fallback, and no interpolation across invalid cells. Invalid numeric payloads
-are zero only alongside validity zero. Invalid guidance gates the residual off.
+height, not goal-ground minus pelvis height), unit direction to a checked
+support-node connection, connector-plus-graph cost / 5 m, valid, at-goal-cell.
+The current pelvis is a transit root, not a stance patch: bounded connections
+must pass every intersected transit cell and the existing height/stride limits.
+No blind nearest-node snap, clamp-to-edge fallback or unknown-cell interpolation.
+Invalid payloads are zero only alongside validity zero. See `PELVIS_GUIDANCE.md`
+for the versioned connection contract and pre-fix comparison.
 
 This is an omniscient **simulation oracle** against static geometry, not a
 LiDAR/depth field. Geometry beyond a finite mesh-field cache can still be queried
@@ -158,16 +159,16 @@ normalized errors of 1.78814e-7 (volume), 1.49012e-7 (probes), and 5.96046e-8
 (guidance), below the unchanged 2e-5 tolerance. Masks match exactly. These are
 reproducibility checks on one reference, not obstacle-avoidance success metrics.
 
-All geometry queries were valid, but guidance was valid for only 334/499 frames.
+In the pre-fix recording, all geometry queries were valid, but guidance was valid for only 334/499 frames.
 Every invalid frame projected the pelvis into a cell that fails the small
 support-patch test even though transit is clear. This is expected at tread
 edges; a pelvis is not a stance foot. We record the masks instead of erasing
 the support test or snapping through obstacles. The hard on/off gate is **not**
 ready for continuous control with a trained nonzero residual.
 
-Next work is to design and validate bounded transit-to-support guidance for
-the pelvis, build challenge placements that genuinely require avoidance, and
-complete phase/contact semantics before RL reward integration. Then introduce
+The transit-root correction and its verification are now described in
+`PELVIS_GUIDANCE.md`. Next work is to build challenge placements that genuinely
+require avoidance and complete phase/contact semantics before RL reward integration. Then introduce
 a tiny, separately gated residual-learning experiment with terrain-retention
 evaluation. Goal-only control, manipulation adaptation and real-robot use are
 not enabled here.

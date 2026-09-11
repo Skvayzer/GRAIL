@@ -48,6 +48,8 @@ def replay(run, device="cpu"):
     clutter = ClosedMeshDistance(*cat_mesh_arrays(cat["source_scene"]), device=device)
     placement = Placement(tuple(cat["placement"]["translation"]), cat["placement"]["yaw"])
     observer = ObstacleObservation(surface, clutter, placement, GuidanceSampler(layout, arrays, device), spec)
+    if meta.get("guidance_contract") != observer.guidance.attachment.manifest():
+        raise ValueError("Unknown guidance-attachment semantics/limits")
     with np.load(run/"observation_shadow.npz", allow_pickle=False) as archive:
         saved = {k: archive[k] for k in archive.files}
     radii = torch.tensor([p["radius"] for p in meta["probe_order"]], dtype=torch.float32, device=device)

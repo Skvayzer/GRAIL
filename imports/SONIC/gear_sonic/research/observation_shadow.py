@@ -62,6 +62,7 @@ class ObservationShadow:
             action_source="original policy.action_mean only; shadow.sample returns None",
             adapter_applied_to_environment=False, original_actor_inputs_changed=False, rewards_changed=False,
             policy_training=False, optimizer_steps=0, packet_spec=self.observer.spec.manifest(),
+            guidance_contract=self.guidance.attachment.manifest(),
             probe_order=[asdict(p) for p in self.cat.probes], anchor_body=wrapper.motion_command.cfg.anchor_body,
             latent_dim=self.adapter.token_dim, latent_bound=self.adapter.bound, latent_mode="post_quantization",
             gradient_test="frozen clone only, autograd.grad on adapter head; no optimizer or parameter update",
@@ -133,6 +134,9 @@ class ObservationShadow:
             "residual": residual.detach().cpu().numpy().copy()[0]})
         self.samples.append(dict(step=len(self.samples), valid=bool(packet["valid"][0]),
             guidance_valid=bool(packet["guidance"][0, 7]),
+            guidance_target_cell=self.guidance.last_attachment["target_cell"][0].tolist(),
+            guidance_connector_xy_m=float(self.guidance.last_attachment["connector_xy"][0]),
+            guidance_covered_cells=int(self.guidance.last_attachment["covered_cells"][0]),
             volume_geometry_valid_fraction=float(packet["volume"][:, 2:].mean()),
             parity_max_abs_error=float((candidate-live_actions).abs().max()),
             processing_ms=(time.perf_counter()-start)*1000.))

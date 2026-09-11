@@ -158,8 +158,8 @@ conflicts were introduced. The owned simulator exited; no robot was accessed.
    traversal corridor, with physical placement checks and a body-feasible route.
 3. Observation-only geometry/guidance conditioning and zero-residual checkpoint
    parity are now implemented and verified; see `OBSERVATION_SHADOW.md`.
-   Before residual learning, fix bounded guidance attachment at tread transitions
-   without inventing support or crossing obstacles. The released tracker still
+   Bounded guidance attachment at tread transitions is implemented in
+   `PELVIS_GUIDANCE.md` without promoting transit cells to stance patches. The released tracker still
    needs future motion/object references; it is not goal-conditioned.
 4. Complete reference foot-phase/riser-contact review before using the contact
    candidate labels as RL permissions or reward ground truth.

@@ -104,7 +104,7 @@ class ObservationTests(unittest.TestCase):
         torch.testing.assert_close(data[1], torch.zeros(9))
         torch.testing.assert_close(data[2, 3:6], torch.zeros(3))
         self.assertEqual(float(data[2, 8]), 1.)
-        sampler.reachable[4, 4] = False
+        sampler.attachment.transit[4, 4] = False
         self.assertFalse(sampler.sample(root[:1], yaw_rotation(q[:1]), surface, 5.)[1].any())
 
     def test_packet_missing_query_masks_gate_adapter(self):
