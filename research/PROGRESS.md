@@ -41,6 +41,10 @@
   rotations, scale retention, inverted normals and gap rejection. Environment
   audit reports no unexpected dependency conflicts. No new dependencies,
   robot connections, ROS changes, policy training or real actuation.
+- Clean-commit confirmation at `1f2f375`:
+  `20260911T151123_875346Z_stair_p1_cat_audit` exited 0 with validated outputs,
+  accepted layout, 498 sampled batches and no failure termination. All launched
+  simulators have exited; the GUI remains stopped.
 
 ## 2026-09-11 — live stairs with CAT clutter
 

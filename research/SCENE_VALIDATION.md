@@ -129,6 +129,9 @@ explain why an ordinary CPU world-space ray cannot validate a moved GPU actor.
 
 ## Verified development results
 
+- Clean `1f2f375` confirmation `20260911T151123_875346Z_stair_p1_cat_audit`
+  exited 0 with accepted layout, validated outputs and no failure termination.
+  No GUI or headless simulator was left running.
 - `20260911T150945_632435Z_stair_p1_cat_audit`: approved wider CAT passage,
   unchanged GRAIL stair tracker. All 96 cooked-geometry parity rays passed
   (30 terrain hits), maximum height difference 0.0000117 m. The graph found a
