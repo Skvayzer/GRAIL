@@ -104,6 +104,18 @@ class CatIntegrationTests(unittest.TestCase):
         normal = evaluation_command(Path("/run"), Path("/run/data"), "fixture", 1)
         self.assertFalse(any("research_cat" in a for a in normal))
 
+    def test_cat_gui_repeats_but_keeps_reference_preflight(self):
+        cmd = evaluation_command(Path("/run"), Path("/run/data"), "fixture", 1,
+                                 gui=True, cat_scene=Path("/scene"))
+        self.assertIn("++headless=false", cmd)
+        self.assertIn("++run_once=false", cmd)
+        self.assertIn("++max_render_steps=0", cmd)
+        self.assertIn("++realtime=true", cmd)
+        self.assertIn('++research_cat_output="/run/cat_audit.json"', cmd)
+        self.assertIn('++research_cat_gui_output="/run"', cmd)
+        normal = evaluation_command(Path("/run"), Path("/run/data"), "fixture", 1, gui=True)
+        self.assertFalse(any("research_cat" in a for a in normal))
+
 
 if __name__ == "__main__":
     unittest.main()

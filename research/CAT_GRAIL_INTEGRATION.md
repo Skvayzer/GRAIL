@@ -49,9 +49,18 @@ local +X direction lies along terrain +Y (yaw in **radians**):
 ```
 
 License flag requires the user's prior acceptance, as in the main research
-README. Omit `--execute` to stage/inspect without starting physics. CAT audit
-cannot be combined with GUI, primitive diagnostics or training smoke, and is
-capped at four environments and one episode / at most 500 policy steps.
+README. Omit `--execute` to stage/inspect without starting physics. CAT integration
+cannot be combined with primitive diagnostics or training smoke, and is capped
+at four environments. Headless audits run one episode / at most 500 policy steps.
+
+For a repeating desktop visualization, add `--gui`, use `--num-envs 1`, and set
+`--timeout 3600`. This loads the same physical clutter and unchanged GRAIL actor.
+The reference-clearance rejection gate still runs before the first policy step.
+The first episode's diagnostic is saved while the viewer stays open; subsequent
+replays are visual demonstrations, **not audited episodes**. `viewer_ready.json`
+and `overview.png` record startup and an actual viewport capture. The overlay
+provides a camera-reset button. Close Isaac Sim to stop, or let the supervisor's
+wall-clock limit stop its own process. No robot connection or training is made.
 
 Outputs include `cat_audit.json`, `reference_sweep.npz`, provenance and logs.
 The sweep records imported-collider sphere centres/radii at all reference

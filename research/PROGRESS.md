@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-09-11 — live stairs with CAT clutter
+
+- Enabled `baseline.py --gui --cat-scene ...` for a repeating desktop demo.
+  Headless audits retain their one-episode/500-step bound. Both modes retain
+  the reference-clearance rejection gate; training and primitive-audit mixing
+  remain prohibited. The released actor and physical scene are unchanged.
+- Added a GUI legend, camera-reset button, readiness record and actual viewport
+  capture. The first episode's diagnostic is persisted immediately; further
+  replays are explicitly not audited and do not accumulate diagnostic samples.
+- Development run `20260911T145325_647000Z_stair_p1_cat_gui_demo` loaded the
+  original stairs with `side-hurdle2`, placement (0,-1,0), yaw pi/2, one G1.
+  Inspected `overview.png`: the robot, stairs and CAT side obstacles are visible
+  alongside upstream yellow height-scan and reference-axis debug markers.
+- The first episode completed without failure: 498 sampled batches, minimum
+  sampled cover gap 0.0935 m and no measured CAT normal contact force. This is
+  unchanged-reference tracking, not learned obstacle avoidance. Terminal
+  contact/coverage limitations from the integration audit still apply.
+- 38 unit tests and syntax/diff checks passed. Viewer intentionally remains open
+  for the user, bounded to one hour; close Isaac Sim to stop sooner. No real
+  robot connection, ROS changes, actuation or training was performed.
+
 ## 2026-09-11 — CAT/GRAIL reference and physical-mesh integration
 
 - Added explicit CAT-to-terrain translation/yaw, per-environment physical mesh

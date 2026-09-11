@@ -46,6 +46,7 @@ class CatAudit:
                     np.allclose(actual[3, :3], np.array(self.placement.translation)+origin, atol=1e-4)):
                 raise ValueError("Physical CAT transform differs from its field placement")
         self.report = dict(schema="grail-cat-reference-audit-v1", simulation_only=True,
+            diagnostic_scope="first episode per environment only, not subsequent GUI replays",
             policy_changed=False, observations_changed=False, rewards_changed=False,
             source_scene=str(self.fields.directory), source_files=self.fields.meta["files"],
             placement=asdict(self.placement), probe_count=len(self.probes), imported_colliders=inventory,

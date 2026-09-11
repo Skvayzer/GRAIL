@@ -616,6 +616,12 @@ def main(override_config: omegaconf.OmegaConf):
         if config.get("research_cat_output"):
             from gear_sonic.research.cat_audit import CatAudit
             clearance_audit = CatAudit(env, config.research_cat_output)
+        cat_demo = None
+        if config.get("research_cat_gui_output"):
+            if args_cli.headless or not config.get("research_cat_output"):
+                raise ValueError("CAT viewer requires GUI and the reference preflight audit")
+            from gear_sonic.research.cat_demo import CatDemo
+            cat_demo = CatDemo(env.env.sim, config)
 
         with torch.no_grad():
             while simulation_app.is_running():
@@ -646,6 +652,14 @@ def main(override_config: omegaconf.OmegaConf):
                 )  # noqa: F841
                 if clearance_audit is not None:
                     clearance_audit.sample(actor_state["actions"], dones)
+                    if cat_demo is not None and clearance_audit.completed.all():
+                        # Persist the first-episode check while the viewer stays
+                        # open. Replays are visual, not additional audit evidence.
+                        clearance_audit.finish()
+                        cat_demo.first_episode_finished(clearance_audit.report)
+                        clearance_audit = None
+                if cat_demo is not None:
+                    cat_demo.step(step_count)
 
                 if eval_step_callbacks:
                     all_want_exit = all(
@@ -676,6 +690,8 @@ def main(override_config: omegaconf.OmegaConf):
                         time.sleep(remaining)
         if clearance_audit is not None:
             clearance_audit.finish()
+        if cat_demo is not None:
+            cat_demo.close()
 
     if simulator_type == "IsaacSim":
         os._exit(0)

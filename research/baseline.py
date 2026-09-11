@@ -78,8 +78,10 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
                          research_clearance_output=str(run / "clearance_audit.json"))
         overrides["manager_env.config.research_clutter"] = "stair_side_v1"
     if cat_scene is not None:
-        overrides.update(eval_callbacks=[], run_eval_loop=True, run_once=True, max_render_steps=501,
+        overrides.update(eval_callbacks=[], run_eval_loop=True, run_once=not gui, max_render_steps=0 if gui else 501,
                          research_cat_output=str(run/"cat_audit.json"))
+        if gui:
+            overrides["research_cat_gui_output"] = str(run)
         overrides.update({"manager_env.config.research_cat_scene": str(cat_scene),
                           "manager_env.config.research_cat_translation": list(cat_translation),
                           "manager_env.config.research_cat_yaw": cat_yaw})
@@ -113,8 +115,8 @@ def main():
     if args.gui and args.training_smoke:
         parser.error("--gui is for the released-policy demo, not training")
     if args.cat_scene:
-        if args.training_smoke or args.gui or args.clutter_audit or args.num_envs > 4:
-            parser.error("CAT audit is a separate headless check, at most four environments; no training")
+        if args.training_smoke or args.clutter_audit or args.num_envs > 4:
+            parser.error("CAT integration supports at most four environments; no training or primitive audit")
         from gear_sonic.research.cat_geometry import Placement, verify_scene_files
         Placement(tuple(args.cat_translation), args.cat_yaw)
         args.cat_scene = args.cat_scene.resolve()
@@ -141,7 +143,7 @@ def main():
     if args.clutter_audit:
         kind = "clutter_audit"
     if args.cat_scene:
-        kind = "cat_audit"
+        kind = "cat_gui_demo" if args.gui else "cat_audit"
     run = ROOT / "runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ") + "_" + args.family + "_" + kind)
     run.mkdir(parents=True, exist_ok=False)
     data = prepare_data(manifest, args.family, run)
@@ -225,7 +227,10 @@ def main():
                 outputs_valid = (report["valid_diagnostic_run"] and report["preflight_accepted"]
                                  and report["rollout_completed_without_failure"] and finite_nested(report)
                                  and "Successfully loaded policy state dict" in (run / "process.log").read_text())
-                record["note"] = "Mesh/reference integration only; no terrain support or avoidance-training certification"
+                record["note"] = "First-episode mesh/reference audit only; no terrain support or avoidance-training certification"
+                if args.gui:
+                    record["viewer_ready"] = (run / "viewer_ready.json").is_file()
+                    outputs_valid = outputs_valid and record["viewer_ready"]
             elif args.clutter_audit:
                 from evaluation_audit import finite_nested
                 report = json.loads((run / "clearance_audit.json").read_text())
