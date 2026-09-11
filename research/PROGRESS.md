@@ -2,6 +2,15 @@
 
 ## 2026-09-11 — actual CAT generator reuse and Isaac export
 
+- Exporter implementation committed/pushed as `568233f`. Clean confirmation
+  scene `20260911T142124_665013Z_cat_scene_side-hurdle-crouch2` and physics run
+  `20260911T142150_928880Z_contact_fixtures` passed 384 rays plus sphere contact.
+  All 29 unit tests passed at that commit, with no generator tests skipped.
+- Final unchanged-policy stair regression at clean `568233f`:
+  `20260911T142229_031745Z_stair_p1_evaluation` exited 0 with strict actor
+  restoration, 499 finite steps, no failure termination, and progress 1.0.
+  Global MPJPE was 35.66776480923695 mm, matching the original sample baseline.
+  All launched simulation processes have exited; the GUI demo remains stopped.
 - Per the user's clarification, reused the original CAT generator rather than
   extending the hand-authored primitive fixtures as a training distribution.
 - Pinned six unchanged source/license files to CAT commit `866ba39`; all hashes

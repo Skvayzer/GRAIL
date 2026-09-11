@@ -107,6 +107,13 @@ is explicitly enabled. It is not a robot movement command or a walking test.
   A first contact fixture incorrectly assumed a randomly selected point-ray hit
   was planar for a finite-radius sphere; it hit a bevel correctly. The fixture
   now selects a planar patch from occupancy, without relaxing the normal test.
+- Clean-commit `568233f` confirmation: `side-hurdle-crouch2` also passed all
+  384 rays plus physical contact (maximum ray error about `3.34e-7 m`). This
+  combined scene has 5,628 occupied cells and 8,300 triangles.
+- The original GRAIL stair sample also passed again at clean `568233f` after
+  these additions: strict checkpoint restoration, 499 finite steps, no failure
+  termination, unchanged 35.668 mm global MPJPE. This regression does not include
+  CAT clutter or demonstrate obstacle avoidance.
 
 These establish scene-export/physics agreement for sample scenes, **not learned
 obstacle avoidance**. Next: compose this actual CAT clutter with GRAIL terrain
