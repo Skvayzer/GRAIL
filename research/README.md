@@ -63,6 +63,8 @@ Laptop-friendly recordings and reproduction commands are in
 tensor-only residual actor/critic, PPO/GAE and learner checkpoint components,
 is tracked in [`TRAINING_PREPARATION.md`](TRAINING_PREPARATION.md). These are not
 yet an integrated avoidance trainer; actual training awaits the user's review.
+The zero-update Isaac learner-state/reset integration and verified 1-/4-environment
+runs are documented in [`RESIDUAL_RUNTIME.md`](RESIDUAL_RUNTIME.md).
 
 ## Desktop commands (from repository root)
 
@@ -75,7 +77,8 @@ git lfs pull --include='imports/SONIC/gear_sonic/data/assets/robot_description/*
 .venv/bin/python research/checkpoint_audit.py
 .venv/bin/python research/baseline.py --family stair_p1
 .venv/bin/python research/baseline.py --family stair_p1 --execute
-# Training plumbing only: 2 updates x 8 steps x 4 environments.
+# Historical M0 plumbing test: 2 updates x 8 steps x 4 environments.
+# Do NOT rerun before the current demo-review/training approval gate is satisfied.
 .venv/bin/python research/baseline.py --family stair_p1 --num-envs 4 --training-smoke --execute
 ```
 

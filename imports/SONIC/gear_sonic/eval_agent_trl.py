@@ -620,7 +620,8 @@ def main(override_config: omegaconf.OmegaConf):
             if not config.get("research_cat_output"):
                 raise ValueError("Combined layout screening requires CAT reference preflight")
             from gear_sonic.research.scene_audit import run_live
-            run_live(env, clearance_audit, config.research_layout_output)
+            run_live(env, clearance_audit, config.research_layout_output,
+                     allow_replicated=bool(config.get("research_layout_replicated", False)))
         cat_demo = None
         if config.get("research_cat_gui_output"):
             if args_cli.headless or not config.get("research_cat_output"):
@@ -644,8 +645,19 @@ def main(override_config: omegaconf.OmegaConf):
             observation_shadow = ObservationShadow(env, clearance_audit, model.policy,
                                                     config.research_observation_shadow_output)
 
+        residual_audit = None
+        if config.get("research_residual_preflight_output"):
+            if (not config.get("research_layout_output") or not run_once or not args_cli.headless
+                    or not 1 <= config.num_envs <= 4 or contact_audit is not None or observation_shadow is not None
+                    or config.manager_env.config.get("render_results", False)):
+                raise ValueError("Residual preflight requires a bounded headless layout check, no other recorder")
+            from gear_sonic.research.residual_runtime_audit import ResidualRuntimeAudit
+            residual_audit = ResidualRuntimeAudit(env, clearance_audit, model.policy,
+                                                config.research_residual_preflight_output)
+
         with torch.no_grad(), (contact_audit if contact_audit is not None else nullcontext()), \
-                (observation_shadow if observation_shadow is not None else nullcontext()):
+                (observation_shadow if observation_shadow is not None else nullcontext()), \
+                (residual_audit if residual_audit is not None else nullcontext()):
             while simulation_app.is_running():
                 frame_start = time.perf_counter()
                 policy_model = model.policy
@@ -667,6 +679,8 @@ def main(override_config: omegaconf.OmegaConf):
 
                 if observation_shadow is not None:
                     observation_shadow.sample(policy_model.obs_dict_buffer, actor_state["actions"])
+                if residual_audit is not None:
+                    residual_audit.sample(policy_model.obs_dict_buffer, actor_state["actions"])
                 results = env.step(actor_state)
                 obs_dict, rewards, dones, infos = (
                     results[0],
@@ -676,6 +690,8 @@ def main(override_config: omegaconf.OmegaConf):
                 )  # noqa: F841
                 if observation_shadow is not None:
                     observation_shadow.outcome(dones)
+                if residual_audit is not None:
+                    residual_audit.outcome(dones, rewards)
                 if contact_audit is not None:
                     contact_audit.policy_step(dones)
                 if clearance_audit is not None:

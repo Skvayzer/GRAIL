@@ -41,6 +41,26 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_residual_preflight_is_explicit_headless_no_update_and_bounded(self):
+        from hydra.core.override_parser.overrides_parser import OverridesParser
+        for count in (1, 4):
+            command = evaluation_command(Path("/run"), Path("/data"), "fixture", count,
+                cat_scene=Path("/cat"), layout_audit=True, residual_preflight=True)
+            self.assertIn("++research_layout_replicated=true", command)
+            self.assertIn('++research_residual_preflight_output="/run/residual_preflight.json"', command)
+            self.assertIn("++run_once=true", command)
+            self.assertIn("++headless=true", command)
+            self.assertNotIn("train_agent", " ".join(command))
+            OverridesParser.create().parse_overrides([arg for arg in command if arg.startswith("++")])
+        for change in (dict(num_envs=5), dict(gui=True), dict(record_video=True), dict(layout_audit=False),
+                       dict(observation_shadow=True), dict(contact_audit=True), dict(cat_scene=None)):
+            options = dict(num_envs=1, cat_scene=Path("/cat"), layout_audit=True, residual_preflight=True)
+            options.update(change)
+            with self.assertRaises(ValueError):
+                evaluation_command(Path("/run"), Path("/data"), "fixture", **options)
+        with self.assertRaises(ValueError):
+            evaluation_command(Path("/run"), Path("/data"), "fixture", 4, cat_scene=Path("/cat"), layout_audit=True)
+
     def test_video_is_opt_in_evaluation_only(self):
         from hydra.core.override_parser.overrides_parser import OverridesParser
         ordinary = evaluation_command(Path("/run"), Path("/data"), "fixture", 1)

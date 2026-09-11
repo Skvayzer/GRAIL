@@ -30,8 +30,12 @@ not capabilities to claim from the first training run.
   backbone/observation contract checks. No PhysX state-resume claim.
 - [ ] Runtime optimizer/update loop, post-update checkpoint/resume validation
   and training logs. No real task optimization has been run at this stage.
-- [ ] Isaac runtime integration, including pre-reset timeout observations,
-  explicit handling of invalid geometry, and 1-/4-environment dry-run checks.
+- [x] Isaac zero-update runtime integration for the static control scene:
+  pre-reset timeout observations, per-environment history resets, independent
+  transition/GAE audit and 1-/4-environment dry-run checks (`RESIDUAL_RUNTIME.md`).
+- [ ] Training-runtime handling of invalid geometry/falling states, asynchronous
+  live resets and the actual stochastic action/collection path. The current
+  preflight rejects invalid packets and does not supply learner actions.
 - [ ] Avoidance reward/termination configuration. Exact world-frame foot or
   anchor tracking must not forbid intended detours. Do not treat provisional
   stair contact-phase labels as validated reward targets.
@@ -86,6 +90,8 @@ overwrites existing files and loads tensor dictionaries with `weights_only`.
 Resume intentionally starts new simulator episodes. The original actor must
 remain outside this optimizer; exact optimizer ownership is checked.
 
-These modules do not launch Isaac, load a released actor, apply an optimizer
-step or claim that the end-to-end CAT trainer exists. Their mathematical and
-initial-state checkpoint tests are preparation for runtime integration.
+The tensor modules do not launch Isaac, load a released actor or apply an
+optimizer step. The separate `--residual-preflight` now integrates privileged
+state sampling and pre-reset capture with the frozen evaluation loop, without
+using learner actions. Its 1-/4-environment results are in `RESIDUAL_RUNTIME.md`.
+An end-to-end CAT trainer still requires the remaining gates above.

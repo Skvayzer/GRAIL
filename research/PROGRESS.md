@@ -1,5 +1,38 @@
 # Progress
 
+## 2026-09-12 — zero-update Isaac learner state and terminal/reset integration
+
+- Added a privileged 2,221D teacher state with all 29 joints, explicit ten-step
+  physical history and ten future frames of 14 named bodies. Exact scales,
+  frame conventions, reference offsets and body/joint orders are versioned.
+  This is not a deployable student input and does not replace GRAIL's inputs.
+- Added read-only capture after original reward computation and before Isaac
+  auto-reset, with no extra physics, command advancement, observation-manager
+  call or global RNG consumption. Final-state +1 reference queries and physical
+  history agree with actual non-reset next states; resets clear only their own
+  histories. Invalid oracle inputs fail closed, not a training recovery claim.
+- Added opt-in `--residual-preflight`: original frozen actions only, exact
+  zero-residual clone parity, no exploration and no optimizer updates. Static
+  support-grid reuse verifies physical meshes/poses for every replica first.
+- One environment `20260911T201349_917151Z_stair_p1_cat_audit`: exit 0, outputs
+  valid, 499 steps, one clean timeout, zero failures. Maximum state discrepancy
+  2.3841858e-7. CAT clearance samples/minima/contact peaks match the previous
+  clean frozen headless run exactly. An earlier configuration lookup error
+  exited before rollout and is preserved in its failed run directory.
+- Four environments `20260911T201532_835046Z_stair_p1_cat_audit`: exit 0,
+  outputs valid, 499 steps, four clean timeouts, zero failures. Verified physical
+  replicas 1/2/3; maximum state discrepancy 2.9802322e-7. Actor and learner hashes
+  unchanged. Independent recorded-data checks verify continuity, reset history,
+  timeout/final separation and GAE via NumPy rather than the tensor code.
+- All 156 tests pass with CUDA enabled (14 new tests). Sandbox-only run passes
+  with six CUDA tests skipped; the full GPU rerun has no skips. Existing
+  nonfatal imageio pipe ResourceWarnings remain in synthetic video tests.
+- Reports, scope limits, data hashes and commands are in `RESIDUAL_RUNTIME.md`.
+  These deterministic transitions are not PPO behavior data. Avoidance rewards,
+  demanding/held-out curriculum, stochastic runtime/update/checkpoint loop,
+  invalid-state handling and final training-approval gate remain unfinished.
+  No real-robot access or task training occurred.
+
 ## 2026-09-11 — review videos and residual learning components (no training)
 
 - Added `baseline.py --record-video`: single-environment headless frozen-policy

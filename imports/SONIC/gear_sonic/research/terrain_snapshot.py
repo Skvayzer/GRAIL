@@ -105,11 +105,11 @@ def ground_plane(stage, root_path="/World/ground"):
     return planes[0]
 
 
-def capture(wrapper, run):
+def capture(wrapper, run, *, allow_replicated=False):
     from isaaclab.sim.utils.stage import get_current_stage
     import torch
     stage, env = get_current_stage(), wrapper.env
-    if env.num_envs != 1:
+    if env.num_envs != 1 and not (allow_replicated and 1 <= env.num_envs <= 4):
         raise ValueError("Terrain layout audit currently requires one environment")
     obj = env.scene["object"]
     path = obj.root_physx_view.prim_paths[0]
@@ -118,10 +118,26 @@ def capture(wrapper, run):
     quaternion = obj.data.root_quat_w[0].cpu().numpy()
     vertices, faces, inventory = rigid_collision_mesh(stage, path, position, quaternion)
     vertices -= origin
+    replicas = []
+    for i in range(1, env.num_envs):
+        other_origin = env.scene.env_origins[i].cpu().numpy()
+        other_position = obj.data.root_pos_w[i].cpu().numpy()
+        other_quaternion = obj.data.root_quat_w[i].cpu().numpy()
+        other_vertices, other_faces, _ = rigid_collision_mesh(stage, obj.root_physx_view.prim_paths[i],
+                                                             other_position, other_quaternion)
+        if (not np.allclose(other_position-other_origin, position-origin, atol=2e-5, rtol=0)
+                or not np.isclose(abs(np.dot(other_quaternion, quaternion)), 1., atol=1e-5)
+                or other_vertices.shape != vertices.shape or not np.array_equal(other_faces, faces)
+                or not np.allclose(other_vertices-other_origin, vertices, atol=2e-5, rtol=0)
+                or abs(other_origin[2]-origin[2]) > 1e-5):
+            raise ValueError("Replicated environments do not share identical local terrain")
+        replicas.append(i)
     plane = ground_plane(stage)
     plane["height"] -= float(origin[2])
     motion = wrapper.motion_command
     ids = motion.motion_ids.unique()
+    if len(ids) != 1:
+        raise ValueError("Shared terrain snapshot requires one identical paired motion")
     total = int(motion.motion_lib.get_time_step_total(ids)[0])
     steps = torch.arange(total, device=env.device)
     positions = motion.motion_lib.get_object_root_pos(ids.expand(total), steps)[:, 0]
@@ -143,5 +159,7 @@ def capture(wrapper, run):
         live_quaternion_wxyz=quaternion.tolist(), ground=plane, colliders=inventory,
         source_file=mesh_path.name, sha256=hashlib.sha256(mesh_path.read_bytes()).hexdigest(),
         mesh_contract="exact collision triangles at live pose; open meshes allowed; NOT signed volume")
+    if allow_replicated:
+        meta["replicas_verified"] = replicas
     (run / "terrain_snapshot.json").write_text(json.dumps(meta, indent=2)+"\n")
     return vertices, faces, meta

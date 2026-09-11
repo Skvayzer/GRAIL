@@ -66,7 +66,10 @@ def scene_overrides(run, data, stem, num_envs):
 
 def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
                        cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False, contact_audit=False,
-                       observation_shadow=False, record_video=False):
+                       observation_shadow=False, record_video=False, residual_preflight=False):
+    if residual_preflight and (not layout_audit or cat_scene is None or gui or record_video
+                              or not 1 <= num_envs <= 4 or contact_audit or observation_shadow):
+        raise ValueError("Residual preflight needs headless CAT/layout, 1..4 environments, and no other recorder")
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,
                      eval_output_dir=str(run / "metrics"))
@@ -87,10 +90,13 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
                           "manager_env.config.research_cat_translation": list(cat_translation),
                           "manager_env.config.research_cat_yaw": cat_yaw})
     if layout_audit:
-        if cat_scene is None or num_envs != 1:
+        if cat_scene is None or (num_envs != 1 and not residual_preflight):
             raise ValueError("Layout audit requires CAT and one environment")
         overrides["research_layout_output"] = str(run / "layout_audit.json")
         overrides["manager_env.config.research_layout_audit"] = True
+    if residual_preflight:
+        overrides["research_residual_preflight_output"] = str(run / "residual_preflight.json")
+        overrides["research_layout_replicated"] = True
     if contact_audit:
         if not layout_audit or gui:
             raise ValueError("Contact audit requires headless single-environment layout audit")
@@ -150,6 +156,8 @@ def main():
                         help="Record articulated contacts every physics step before reset; requires headless layout audit")
     parser.add_argument("--observation-shadow", action="store_true",
                         help="Record oracle obstacle packets and zero-residual frozen-clone parity; NEVER apply adapter actions")
+    parser.add_argument("--residual-preflight", action="store_true",
+                        help="Zero-update learner state/timeout/reset audit, 1..4 headless environments; original actions only")
     parser.add_argument("--cat-translation", type=float, nargs=3, default=(0., 0., 0.), metavar=("X", "Y", "Z"))
     parser.add_argument("--cat-yaw", type=float, default=0., help="CAT-to-terrain yaw in radians")
     parser.add_argument("--training-smoke", action="store_true",
@@ -164,7 +172,10 @@ def main():
         parser.error("--gui is for the released-policy demo, not training")
     if args.record_video and (args.gui or args.training_smoke or args.num_envs != 1):
         parser.error("--record-video requires one headless evaluation environment, not training")
-    if args.layout_audit and (not args.cat_scene or args.num_envs != 1):
+    if args.residual_preflight and (not args.layout_audit or not args.cat_scene or args.gui or args.training_smoke
+            or args.record_video or args.contact_audit or args.observation_shadow or not 1 <= args.num_envs <= 4):
+        parser.error("--residual-preflight needs headless CAT/layout, 1..4 environments, no training or other recorders")
+    if args.layout_audit and (not args.cat_scene or (args.num_envs != 1 and not args.residual_preflight)):
         parser.error("--layout-audit needs --cat-scene and --num-envs 1")
     if args.contact_audit and (not args.layout_audit or args.gui or args.training_smoke):
         parser.error("--contact-audit requires --layout-audit, no GUI or training")
@@ -215,7 +226,8 @@ def main():
                                      gui=args.gui, clutter_audit=args.clutter_audit, cat_scene=args.cat_scene,
                                      cat_translation=args.cat_translation, cat_yaw=args.cat_yaw,
                                      layout_audit=args.layout_audit, contact_audit=args.contact_audit,
-                                     observation_shadow=args.observation_shadow, record_video=args.record_video)
+                                     observation_shadow=args.observation_shadow, record_video=args.record_video,
+                                     residual_preflight=args.residual_preflight)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -301,6 +313,10 @@ def main():
                     from observation_results import audit_observation_shadow
                     record["observation_shadow_audit"] = audit_observation_shadow(run)
                     outputs_valid = outputs_valid and record["observation_shadow_audit"]["passed"]
+                if args.residual_preflight:
+                    from residual_results import audit_runtime
+                    record["residual_runtime_audit"] = audit_runtime(run)
+                    outputs_valid = outputs_valid and record["residual_runtime_audit"]["passed"]
                 if args.gui:
                     record["viewer_ready"] = (run / "viewer_ready.json").is_file()
                     outputs_valid = outputs_valid and record["viewer_ready"]
