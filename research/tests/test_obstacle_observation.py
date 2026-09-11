@@ -141,6 +141,34 @@ class ObservationTests(unittest.TestCase):
         for name in cpu:
             torch.testing.assert_close(cpu[name], gpu[name].cpu(), atol=3e-6, rtol=1e-5)
 
+    @unittest.skipUnless(torch.cuda.is_available(), "CUDA required")
+    def test_non_axis_yaw_is_independent_of_tf32_and_batch_size(self):
+        # The upstream Isaac evaluator enables TF32 for the actor. Geometry
+        # must not inherit reduced-precision matmul or change that global flag.
+        root = torch.tensor([[.0217, -.0474, .81]])
+        quaternion = torch.tensor([[math.cos(.1732), 0., 0., math.sin(.1732)]])
+        centers = torch.linspace(-.3173, .4317, 104*3).reshape(1, 104, 3)+root[:, None]
+        radii = torch.full((104,), .0317)
+        spec = ObservationSpec()
+        cpu_source = observer(spec=spec)
+        cpu_source.guidance = guidance_fixture()
+        expected = cpu_source.sample(root, quaternion, centers, radii)
+        gpu_source = observer(device="cuda:0", spec=spec)
+        gpu_source.guidance = guidance_fixture("cuda:0")
+        previous = torch.backends.cuda.matmul.allow_tf32
+        try:
+            for tf32 in (False, True):
+                torch.backends.cuda.matmul.allow_tf32 = tf32
+                for batch in (1, 16):
+                    args = [t.expand(batch, *t.shape[1:]).contiguous().cuda() for t in (root, quaternion, centers)]
+                    result = gpu_source.sample(*args, radii.cuda())
+                    self.assertEqual(torch.backends.cuda.matmul.allow_tf32, tf32)
+                    for key in expected:
+                        torch.testing.assert_close(result[key].cpu(), expected[key].expand(batch, *expected[key].shape[1:]),
+                                                   atol=3e-6, rtol=1e-5)
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = previous
+
 
 class AdapterTests(unittest.TestCase):
     def test_zero_initialization_rng_and_first_head_gradient(self):

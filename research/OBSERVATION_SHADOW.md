@@ -125,6 +125,12 @@ actor and starts no Isaac process. Each replay report is a new ignored run dir;
 source data is immutable. This reproduces coordinate/geometry sampling, not
 the correctness of hypothetical sensor inputs or learned behavior.
 
+The observation's coordinate rotations use explicit float32 products, not
+matrix multiplications that inherit the actor's TF32 setting. Geometry results
+must agree for single-frame and batched replay without modifying any global
+precision flag or weakening the replay tolerance. A non-axis-yaw regression
+checks CPU/CUDA, TF32 on/off and batches 1/16.
+
 ## Findings and remaining gates
 
 Development run `20260911T184716_604447Z_stair_p1_cat_audit` completed with 499
@@ -133,6 +139,11 @@ exact action-parity checks, unchanged weights, and adapter-head gradient norm
 no-shadow run exactly. 112 unit tests pass, with CPU/CUDA parity and adversarial
 saved-payload checks. The final raw-probe/replay extension was added afterward;
 clean-run evidence is recorded separately in `PROGRESS.md`.
+
+The first clean run (`20260911T185232_282806Z_stair_p1_cat_audit`, `762ce22`)
+passed action parity, but its offline geometry replay rejected the TF32/batch
+precision discrepancy described above. That recording remains unchanged as
+evidence; it is not accepted as a geometry-reproducible observation dataset.
 
 All geometry queries were valid, but guidance was valid for only 334/499 frames.
 Every invalid frame projected the pelvis into a cell that fails the small

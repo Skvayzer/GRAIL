@@ -31,9 +31,19 @@
 - 112 tests pass (15 new), including CPU/CUDA/frame parity, invalid masks,
   support-vs-clutter channels, zero/RNG/gradient/bounds, launcher restrictions,
   saved action tamper detection and terminal pairing. No new runtime conflicts.
-- Added raw probe-centre capture and independent offline geometry replay after
-  the development run above. A clean-commit run/replay remains to confirm this
-  final payload. Commands and limitations: `OBSERVATION_SHADOW.md`.
+- Clean `762ce22` run `20260911T185232_282806Z_stair_p1_cat_audit` confirmed
+  all 499 action checks and raw probe-centre capture. Its clearance samples,
+  minima, contact classification counts and contact payload hash exactly match
+  the earlier no-shadow regression. Offline CPU/CUDA geometry replay then
+  correctly rejected a maximum normalized volume error of 0.0002823174.
+- Diagnosed the replay discrepancy: the upstream evaluator enables TF32, which
+  affected our new small `einsum` coordinate transforms; probe transforms also
+  changed with batch size. Replaced only observation-coordinate transforms
+  with explicit float32 products, leaving all actor precision settings intact.
+  A new non-axis-yaw regression failed before the fix and exercises CPU/CUDA,
+  TF32 on/off and batches 1/16. The 2e-5 replay tolerance was not relaxed.
+  A new clean run/replay remains to confirm the fix. Prior recordings are
+  retained, not regenerated in place. Commands: `OBSERVATION_SHADOW.md`.
 
 ## 2026-09-11 — random role provenance and terrain-aware diagnostic guidance
 

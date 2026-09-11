@@ -68,6 +68,19 @@ def packed_distance(distance, valid, scale, *, unsigned=False):
     return torch.where(valid, (distance/scale).clamp(0. if unsigned else -1., 1.), 0.)
 
 
+def rotate_vectors(rotation, vectors):
+    """Float32 Bx3 / BxNx3 rotation, independent of actor TF32 settings.
+
+    Small geometry transforms must not dispatch to reduced-precision GEMM.
+    Explicit products also keep single-frame and batched replay consistent,
+    without changing any process-global precision option used by the actor.
+    """
+    matrix = rotation[:, None] if vectors.ndim == 3 else rotation
+    return (matrix[..., :, 0]*vectors[..., 0, None]
+            + matrix[..., :, 1]*vectors[..., 1, None]
+            + matrix[..., :, 2]*vectors[..., 2, None])
+
+
 class GuidanceSampler:
     def __init__(self, meta, arrays, device="cpu"):
         limits = LayoutLimits(**meta["support_graph"]["limits"])
@@ -102,8 +115,8 @@ class GuidanceSampler:
         valid &= (support-self.height[i, j]).abs() <= self.max_step
         delta = self.goal-root
         delta[:, 2] = self.goal[2]-support
-        local_delta = torch.einsum("bij,bj->bi", rotation.transpose(1, 2), delta)
-        local_direction = torch.einsum("bij,bj->bi", rotation.transpose(1, 2), self.direction[i, j])
+        local_delta = rotate_vectors(rotation.transpose(1, 2), delta)
+        local_direction = rotate_vectors(rotation.transpose(1, 2), self.direction[i, j])
         data = torch.cat(((local_delta/scale).clamp(-1., 1.), local_direction,
                           (self.cost[i, j]/scale).clamp(0., 1.)[:, None], valid[:, None],
                           (valid & (index == self.goal_cell).all(-1))[:, None]), -1)
@@ -130,7 +143,7 @@ class ObstacleObservation:
                        for t in (root, quaternion, centers, radii)) or (radii <= 0).any()):
             raise ValueError("Finite bounded float32 root/pose/probe geometry on the query device required")
         rotation = yaw_rotation(quaternion)
-        grid = torch.einsum("bij,nj->bni", rotation, self.local_grid)+root[:, None, :]
+        grid = rotate_vectors(rotation, self.local_grid[None])+root[:, None, :]
         points = torch.cat((grid, centers), 1)
         cd, _, cv = self.clutter.query(self.placement.to_local(points))
         td, _, tv = self.surface.distance(points)
@@ -138,7 +151,7 @@ class ObstacleObservation:
         unsigned = packed_distance(td, tv, spec.distance_scale, unsigned=True)
         n = len(self.local_grid)
         volume = torch.stack((signed[:, :n], unsigned[:, :n], cv[:, :n], tv[:, :n]), 1).reshape(b, 4, *spec.shape)
-        local_centers = torch.einsum("bij,bnj->bni", rotation.transpose(1, 2), centers-root[:, None, :])
+        local_centers = rotate_vectors(rotation.transpose(1, 2), centers-root[:, None, :])
         probes = torch.cat(((local_centers/spec.distance_scale).clamp(-1., 1.),
             (radii/spec.distance_scale).clamp(0., 1.).expand(b, -1)[..., None],
             packed_distance(cd[:, n:]-radii, cv[:, n:], spec.distance_scale)[..., None],
