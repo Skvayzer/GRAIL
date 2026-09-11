@@ -15,7 +15,7 @@ from .learner_state import environment_selection
 
 
 class RuntimeObservation:
-    def __init__(self, wrapper, cat_audit, run):
+    def __init__(self, wrapper, cat_audit, run, *, challenge=None):
         self.env, self.cat = wrapper.env, cat_audit
         if not 1 <= self.env.num_envs <= 4:
             raise ValueError("Static replicated oracle currently supports 1..4 environments")
@@ -25,7 +25,10 @@ class RuntimeObservation:
             raise ValueError("Every replicated terrain must have verified identical local geometry")
         layout_path, grid_path = run/"layout_audit.json", run/"layout_audit.npz"
         layout = json.loads(layout_path.read_text())
-        if (not layout["accepted_for_reference_diagnostic"] or layout["grid_file"] != grid_path.name
+        admitted = (challenge is not None and challenge.layout_checked
+                    and layout.get("accepted_for_training_challenge")
+                    and layout.get("challenge_admission") == challenge.contract)
+        if ((not layout["accepted_for_reference_diagnostic"] and not admitted) or layout["grid_file"] != grid_path.name
                 or hashlib.sha256(grid_path.read_bytes()).hexdigest() != layout["grid_sha256"]):
             raise ValueError("Runtime oracle requires intact, accepted physical layout evidence")
         with np.load(grid_path, allow_pickle=False) as data:

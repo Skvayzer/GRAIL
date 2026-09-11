@@ -24,6 +24,39 @@ def packet(n=3):
 
 
 class LatentPolicyTests(unittest.TestCase):
+    @unittest.skipUnless(torch.cuda.is_available(), "CUDA unavailable")
+    def test_nonzero_cuda_head_has_consistent_likelihood_across_batch_sizes(self):
+        from gear_sonic.research.residual_learning import learner_precision
+        original = torch.backends.cuda.matmul.allow_tf32, torch.backends.cudnn.allow_tf32
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            net = ResidualActorCritic(104, 2221).cuda().eval()
+            generator = torch.Generator(device="cuda").manual_seed(523)
+            def random(*shape):
+                return torch.randn(*shape, generator=generator, device="cuda")
+            with torch.no_grad():
+                net.obstacle.head.weight.copy_(random(*net.obstacle.head.weight.shape)*.04)
+            p = dict(volume=random(32, 4, 13, 13, 11), probes=random(32, 104, 8),
+                     guidance=random(32, 9), valid=torch.ones(32, dtype=bool, device="cuda"))
+            p["volume"][:, 2:] = 1
+            p["probes"][..., 6:] = 1
+            p["guidance"][:, 7] = 1
+            state = random(32, 2221)*3
+            sample = net.sample(p, state, generator)
+            for index in range(0, 32, 4):
+                sl = slice(index, index+4)
+                lp, _, value = net.evaluate_action({k: v[sl] for k, v in p.items()}, state[sl], sample["pre_tanh"][sl])
+                torch.testing.assert_close(lp, sample["log_prob"][sl], atol=5e-4, rtol=0)
+                torch.testing.assert_close(value, sample["value"][sl], atol=5e-5, rtol=0)
+            self.assertTrue(torch.backends.cuda.matmul.allow_tf32)
+            self.assertTrue(torch.backends.cudnn.allow_tf32)
+            with self.assertRaises(ValueError), learner_precision():
+                raise ValueError("test cleanup")
+            self.assertTrue(torch.backends.cuda.matmul.allow_tf32)
+        finally:
+            torch.backends.cuda.matmul.allow_tf32, torch.backends.cudnn.allow_tf32 = original
+
     def test_zero_mean_no_rng_change_and_nonzero_exploration(self):
         before = torch.get_rng_state().clone()
         net = ResidualActorCritic(2, 7)

@@ -6,6 +6,7 @@ updates here. The runtime must separately supply reviewed observations, correct
 pre-reset bootstrap values and explicit training approval.
 """
 from dataclasses import dataclass
+from contextlib import contextmanager
 import math
 
 import torch
@@ -13,6 +14,24 @@ from torch import nn
 from torch.distributions import Normal
 
 from .obstacle_adapter import ObstacleAdapter
+
+
+@contextmanager
+def learner_precision():
+    """Full-float learner math; restore frozen actor's original TF32 settings.
+
+    Collection and PPO use different batch sizes. TF32 kernel selection can
+    otherwise change the likelihood of the very same stored action after the
+    zero mean head learns nonzero weights. Runtime is single-threaded.
+    """
+    matmul, convolution = torch.backends.cuda.matmul.allow_tf32, torch.backends.cudnn.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        yield
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = matmul
+        torch.backends.cudnn.allow_tf32 = convolution
 
 
 def finite(*values):
@@ -52,8 +71,10 @@ class ResidualActorCritic(nn.Module):
         return dict(schema="grail-cat-residual-actor-critic-v1", state_dim=self.state_dim,
             probe_count=self.obstacle.probe_count, latent_dim=self.latent_dim, latent_bound=self.bound,
             log_std_bounds=[-4., -.5], action="pre-tanh Gaussian latent; bound*tanh(z) into frozen decoder",
-            entropy="pre-tanh", value_encoder="shared obstacle and reference/proprioception trunk")
+            entropy="pre-tanh", value_encoder="shared obstacle and reference/proprioception trunk",
+            arithmetic="float32 learner; TF32 disabled locally, frozen actor settings restored")
 
+    @learner_precision()
     def forward(self, packet, state):
         if state.shape != (len(packet["valid"]), self.state_dim):
             raise ValueError("State observation shape differs from policy contract")

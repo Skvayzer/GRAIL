@@ -596,6 +596,17 @@ def main(override_config: omegaconf.OmegaConf):
         for obs_key in obs_dict:
             obs_dict[obs_key] = obs_dict[obs_key].to(device)
 
+        if config.get("research_training_plan"):
+            if not args_cli.headless or not config.get("research_avoidance_task"):
+                raise ValueError("M2 setup requires the explicit headless avoidance profile")
+            from gear_sonic.research.training_runtime import run_training
+            run_training(env, model.policy, config.research_training_plan)
+            # This branch owns its bounded collection loop and must never fall
+            # through into the unchanged frozen-policy diagnostic loop below.
+            if simulator_type == "IsaacSim":
+                os._exit(0)
+            return
+
         eval_step_callbacks = {
             name: cb
             for name, cb in callbacks.items()

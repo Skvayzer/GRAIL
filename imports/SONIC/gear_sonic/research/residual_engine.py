@@ -12,7 +12,7 @@ import math
 import torch
 
 from .learning_checkpoint import validate_optimizer, finite_tree
-from .residual_learning import LossConfig, clipped_ppo_loss, finite
+from .residual_learning import LossConfig, clipped_ppo_loss, finite, learner_precision
 from .residual_rollout import ResidualRollout, minibatches
 
 
@@ -89,8 +89,11 @@ class PPOUpdater:
             logp, _, value = self.model.evaluate_action(packet_from(b), b["state"], b["pre_tanh"])
             if (not torch.allclose(logp, b["old_log_prob"], atol=5e-4, rtol=0)
                     or not torch.allclose(value, b["old_values"], atol=5e-5, rtol=0)):
-                raise ValueError("Stale or inconsistent sampled behavior likelihood/value")
+                raise ValueError("Stale or inconsistent sampled behavior likelihood/value: "
+                    f"max logp error={float((logp-b['old_log_prob']).abs().max()):.8g}, "
+                    f"value error={float((value-b['old_values']).abs().max()):.8g}")
 
+    @learner_precision()
     def run(self, data, *, optimize=False):
         if type(optimize) is not bool:
             raise ValueError("Explicit boolean optimize choice required")

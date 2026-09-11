@@ -14,7 +14,7 @@ from .usd_envelope import imported_collision_probes
 
 
 class CatAudit:
-    def __init__(self, wrapper, output):
+    def __init__(self, wrapper, output, *, challenge=None):
         from pxr import UsdGeom, UsdPhysics
         from isaaclab.sim.utils.stage import get_current_stage
         self.env = wrapper.env
@@ -57,8 +57,15 @@ class CatAudit:
             terrain_support_verified=False, avoidance_training_ready=False)
         self.report["reference"] = self.reference_check(wrapper.motion_command)
         self.report["preflight_accepted"] = self.report["reference"]["sampled_reference_clear"]
+        self.report["probe_order"] = [asdict(p) for p in self.probes]
+        self.save()  # Preserve live geometry even when challenge admission rejects.
+        if challenge is not None:
+            from .training_admission import ChallengeAdmission
+            if not isinstance(challenge, ChallengeAdmission):
+                raise ValueError("Verified challenge object required, not a bypass flag")
+            self.report["challenge_admission"] = challenge.validate_reference(self, wrapper)
         self.save()
-        if not self.report["preflight_accepted"]:
+        if not self.report["preflight_accepted"] and challenge is None:
             raise RuntimeError("CAT intersects/approaches the reference collider cover. No policy steps allowed; inspect cat_audit.json")
 
     def gaps(self, centers, radii):

@@ -164,7 +164,7 @@ def physics_parity(wrapper, surface, arrays, terrain):
         direct_gpu_cpu_pose_limitation="https://nvidia-omniverse.github.io/PhysX/physx/5.7.0/docs/DirectGPUAPI.html")
 
 
-def run_live(wrapper, cat_audit, output, *, allow_replicated=False):
+def run_live(wrapper, cat_audit, output, *, allow_replicated=False, challenge=None):
     from .terrain_snapshot import capture
     output = Path(output)
     capture(wrapper, output.parent, allow_replicated=allow_replicated)
@@ -174,7 +174,10 @@ def run_live(wrapper, cat_audit, output, *, allow_replicated=False):
     report["physics_rays"] = parity
     report["physics_ray_parity_verified"] = parity["passed"]
     report["accepted_for_reference_diagnostic"] = report["geometry_screen_accepted"] and parity["passed"]
+    if challenge is not None:
+        report["challenge_admission"] = challenge.validate_layout(surface, cat_audit, report)
+        report["accepted_for_training_challenge"] = True
     save(output, report, arrays)
     print(f"CAT_LAYOUT_AUDIT {output} accepted={report['accepted_for_reference_diagnostic']}", flush=True)
-    if not report["accepted_for_reference_diagnostic"]:
+    if not report["accepted_for_reference_diagnostic"] and challenge is None:
         raise RuntimeError("Combined terrain/CAT layout failed screening; see layout_audit.json. No policy-loop steps allowed.")

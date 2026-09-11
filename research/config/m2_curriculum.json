@@ -1,0 +1,24 @@
+{
+  "schema": "grail-cat-m2-curriculum-v1",
+  "environment_review_approved": true,
+  "review": "User reviewed environment videos and confirmed looks valid on 2026-09-12. Optimizer approval is separate.",
+  "stage": "M2 reference-conditioned posture-avoidance pilot, not goal-only deployment",
+  "scenes": {
+    "stair_development_0": {
+      "split": "development",
+      "family": "stair_p1",
+      "witness": "research/runs/20260911T211743_796471Z_posture_witness/witness.json",
+      "witness_sha256": "a7f30144bef44cb787a87b5054405cc38a1d5a64c3f6d66961af8813bf2fe9b0",
+      "case": 17
+    },
+    "stair_validation_102": {
+      "split": "validation",
+      "family": "stair_p1",
+      "witness": "research/runs/20260911T211311_525513Z_posture_witness/witness.json",
+      "witness_sha256": "ef0390725c1315e63d38fe5fb636df2e359d479402cfa1186867af9d0bee482f",
+      "case": 17
+    }
+  },
+  "retention_families": ["stair_p1", "curb", "slope", "sitting"],
+  "held_out_policy_benchmark": false
+}
