@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-09-12 — resizing to the user's 20 GB VRAM target
+
+- Stopped only our original worker gracefully at 4,194,304 transitions; lateral
+  transfer is complete. Checkpoint `checkpoint_000004194304.pt` preserved and
+  verified, along with its optimizer and normalization state. The in-progress
+  held-out evaluation is marked partial; it is not treated as a full benchmark.
+- Capacity run `20260912_cat_capacity_16384_v1`: 16,384 independent environments,
+  four optimizer phases, 2,097,152 transitions and 1,024 optimizer updates.
+  Checkpoint audit passes. Average 17,176 env-steps/s; peak Torch-reserved
+  12.785 GiB; minimum CUDA device-free 1.272 GiB. Total process use approached
+  19.8 GiB. Other user's 9.6 GiB GPU job was left running.
+- Added transition-based resize/resume accounting and tests (including the
+  real legacy checkpoint), environment-count choices up to 32,768, configurable
+  free-memory stop threshold (minimum 1 GiB), and NVIDIA process-memory metrics.
+  The measured next candidate is 16,640 environments; no dummy VRAM allocation.
+- Eleven targeted CPU tests pass. These changes affect only our desktop
+  simulation learner; no robot connection or other user's process changed.
+
 ## 2026-09-12 — full generated-clutter training launched
 
 - Launched `20260912_cat_generated_full_shared_gpu_v1` at code revision `1b79057`,

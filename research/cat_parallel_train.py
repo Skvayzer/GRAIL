@@ -26,6 +26,28 @@ def memory_fraction(limit_gib,total_bytes):
     return limit_gib*2**30/total_bytes
 
 
+def resume_phase_progress(checkpoint,source_config,phase_names):
+    """Preserve transitions, not old rollout indices, when resizing vector envs."""
+    if [tuple(p[:2]) for p in source_config["phases"]]!=list(phase_names):
+        raise ValueError("Resume phase sequence differs from source run")
+    if "phase_transitions" in checkpoint:
+        progress=list(checkpoint["phase_transitions"])
+        budgets=list(checkpoint["phase_budget_transitions"])
+    else:
+        chunk=source_config["args"]["num_envs"]*source_config["native_recipe"]["policy_config"]["unroll_length"]
+        budgets=[p[2]*chunk for p in source_config["phases"]]
+        phase=checkpoint["phase"]
+        if not 0<=phase<=len(budgets): raise ValueError("Invalid legacy resume phase")
+        progress=[budget if i<phase else 0 for i,budget in enumerate(budgets)]
+        if phase<len(progress): progress[phase]=checkpoint["next_update"]*chunk
+    if (len(progress)!=len(phase_names) or len(budgets)!=len(phase_names)
+            or any(type(v) is not int or v<0 for v in progress)
+            or any(type(v) is not int or v<=0 for v in budgets)
+            or sum(progress)!=checkpoint["total_steps"]):
+        raise ValueError("Resume transition accounting mismatch")
+    return progress,budgets
+
+
 def gpu_robot_deployments():
     """Read only: identify potentially timing-critical robot users of this GPU."""
     result=subprocess.run(["nvidia-smi","--query-compute-apps=pid","--format=csv,noheader,nounits"],
@@ -41,12 +63,22 @@ def gpu_robot_deployments():
     return found
 
 
+def process_gpu_memory_gib():
+    """NVIDIA-reported process use, including non-Torch simulator allocations."""
+    result=subprocess.run(["nvidia-smi","--query-compute-apps=pid,used_gpu_memory",
+        "--format=csv,noheader,nounits"],text=True,capture_output=True,check=True)
+    for line in result.stdout.splitlines():
+        pid,used=(part.strip() for part in line.split(",",1))
+        if pid==str(os.getpid()): return float(used)/1024
+    raise RuntimeError("Cannot read training process GPU memory")
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("run",type=Path)
     p.add_argument("--bank",type=Path,default=ROOT/"runs/20260912_cat_generated_bank_v2")
     p.add_argument("--context",type=Path,default=ROOT/"runs/20260912T095135_246506Z_stair_p1_cat_audit")
-    p.add_argument("--num-envs",type=int,choices=(16,64,128,256,512,1024,2048),default=2048)
+    p.add_argument("--num-envs",type=int,default=2048,help="16/64/128 or a multiple of 256 up to 32768")
     p.add_argument("--benchmark",action="store_true")
     p.add_argument("--benchmark-steps",type=int,default=128)
     p.add_argument("--smoke-updates",type=int,default=0)
@@ -57,6 +89,8 @@ def main():
     p.add_argument("--hours",type=float,default=24.)
     p.add_argument("--torch-memory-limit-gib",type=float,default=14.,
         help="Torch allocator ceiling; not a total-process limit (Kit/PhysX allocate separately)")
+    p.add_argument("--min-free-gpu-gib",type=float,default=2.,
+        help="Checkpointed stop below this device headroom; minimum supported reserve is 1 GiB")
     p.add_argument("--wandb-mode",choices=("online","offline","disabled"),default="online")
     p.add_argument("--resume",type=Path)
     p.add_argument("--seed",type=int,default=20260912)
@@ -67,11 +101,16 @@ def main():
         help="Only after operator confirms this exact GPU deployment PID is not controlling hardware")
     p.add_argument("--worker",action="store_true",help=argparse.SUPPRESS)
     a=p.parse_args()
+    if a.num_envs not in (16,64,128) and (not 256<=a.num_envs<=32768 or a.num_envs%256):
+        p.error("Environment count must be 16/64/128 or a multiple of 256 up to 32768")
     if not a.accept_isaac_eula or not 0<a.hours<=48 or a.smoke_updates<0 or not math.isfinite(a.torch_memory_limit_gib) or a.torch_memory_limit_gib<=0:
         p.error("Explicit EULA acceptance and bounded runtime required")
+    if not math.isfinite(a.min_free_gpu_gib) or not 1.<=a.min_free_gpu_gib<=16.:
+        p.error("Device free-memory reserve must be 1..16 GiB")
     if a.no_randomization and not a.benchmark:
         p.error("Randomization cannot be disabled for distributional training")
     a.run=a.run.resolve(); a.bank=a.bank.resolve(); a.context=a.context.resolve()
+    if a.resume: a.resume=a.resume.resolve()
     deployments=gpu_robot_deployments()
     if any(d["pid"] not in a.reviewed_deployment_pid for d in deployments):
         p.error("Potential real-robot GPU deployment detected; operator review required: "+str([d["pid"] for d in deployments]))
@@ -141,6 +180,7 @@ def train(a):
         free_gib=free_bytes/2**30,total_gib=total_bytes/2**30,
         scope="Torch allocator only; Kit/PhysX memory separately monitored")),flush=True)
     actor,contract=load_grail(a.context)
+    resume_checkpoint=torch.load(a.resume,map_location="cpu",weights_only=False) if a.resume else None
     expert=teacher().to(device)
     prototype=DistillStudent(actor,contract,expert.cpu()).to(device)
     # CAT-sized hidden stack for distributional transfer; not the small pilot MLP.
@@ -173,15 +213,21 @@ def train(a):
 
     # Statistics are frozen before likelihood-based optimization. Burn-in uses
     # generated scenes and native teacher, never the old side1 dataset.
-    moments=[]
-    env.family="all"; env.reset(torch.arange(a.num_envs,device=device)); obs=env.observe()
-    with torch.no_grad():
-        for _ in range(32):
-            moments.append(obs["obs"])
-            obs,*_=env.step(env.teacher_targets(expert,obs))
-    values=torch.cat(moments)
-    prototype.mean.copy_(values.mean(0)); prototype.std.copy_(values.std(0).clamp_min(.05))
-    del moments,values
+    if resume_checkpoint is None:
+        moments=[]
+        env.family="all"; env.reset(torch.arange(a.num_envs,device=device)); obs=env.observe()
+        with torch.no_grad():
+            for _ in range(32):
+                moments.append(obs["obs"])
+                obs,*_=env.step(env.teacher_targets(expert,obs))
+        values=torch.cat(moments)
+        prototype.mean.copy_(values.mean(0)); prototype.std.copy_(values.std(0).clamp_min(.05))
+        del moments,values
+    else:
+        # Restore the original fitted statistics; don't waste a new burn-in on
+        # values that would immediately be overwritten by learner restoration.
+        prototype.mean.copy_(resume_checkpoint["models"]["generalist"]["mean"])
+        prototype.std.copy_(resume_checkpoint["models"]["generalist"]["std"])
     models={f:WholeBodyPolicy(prototype,device) for f in ("lateral","low","overhead","mixed","generalist")}
     optimizers={f:torch.optim.Adam(m.trainable(),lr=3e-4) for f,m in models.items()}
     frozen=prototype.frozen_hash()
@@ -197,19 +243,33 @@ def train(a):
     source=json.loads((ROOT/"artifacts/cat_release/logs_v1/generalist_v1/checkpoints/config.json").read_text())
     cfg=source["policy_config"]
     # Transition budgets do not silently grow when GPU environment count grows.
-    import math
+    transition_budgets={}
     for name,budget in (("transfer_updates",4194304),("specialist_ppo_updates",16777216),
                         ("dagger_updates",8388608),("generalist_ppo_updates",134217728)):
         if getattr(a,name) is None:
             setattr(a,name,math.ceil(budget/(a.num_envs*cfg["unroll_length"])))
+            transition_budgets[name]=budget
+        else:
+            transition_budgets[name]=getattr(a,name)*a.num_envs*cfg["unroll_length"]
     phases=[]
+    phase_budgets=[]
     for family in ("lateral","low","overhead","mixed"):
         phases += [(family,"transfer",a.transfer_updates),(family,"ppo",a.specialist_ppo_updates)]
+        phase_budgets += [transition_budgets["transfer_updates"],transition_budgets["specialist_ppo_updates"]]
     phases += [("generalist","dagger",a.dagger_updates),("generalist","ppo",a.generalist_ppo_updates)]
+    phase_budgets += [transition_budgets["dagger_updates"],transition_budgets["generalist_ppo_updates"]]
     if a.smoke_updates:
         phases=[("lateral","transfer",a.smoke_updates),("lateral","ppo",1),
             ("generalist","dagger",1),("generalist","ppo",1)]
+        phase_budgets=[p[2]*a.num_envs*cfg["unroll_length"] for p in phases]
+    phase_progress=[0]*len(phases)
+    if resume_checkpoint is not None:
+        source_config=json.loads((a.resume.parent/"config.json").read_text())
+        phase_progress,phase_budgets=resume_phase_progress(resume_checkpoint,source_config,[p[:2] for p in phases])
     config=dict(schema="cat-generated-whole-body-training-v1",args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},
+        phase_budget_transitions=phase_budgets,initial_phase_transitions=list(phase_progress),
+        budget_semantics="Preserve transitions on resize; last complete vector rollout can overshoot each stage by less than one batch",
+        resume_checkpoint_sha256=sha(a.resume) if a.resume else None,
         source_git_revision=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
         source_files_sha256={name:sha(ROOT/name) for name in ("cat_parallel_train.py","cat_parallel_env.py",
             "cat_parallel_policy.py","cat_parallel_core.py","cat_distill_model.py","cat_direct_isaac.py","cat_direct_native.py")},
@@ -227,9 +287,9 @@ def train(a):
     wb=wandb.init(entity="skvayzer",project="grail-cat",name=a.run.name,dir=str(a.run),
         config=config,mode=a.wandb_mode,job_type="generated-clutter-whole-body")
     (a.run/"wandb.json").write_text(json.dumps(dict(id=wb.id,url=wb.url))+"\n")
-    phase_start,update_start,total_steps,total_updates=0,0,0,0
+    total_steps,total_updates=0,0
     if a.resume:
-        checkpoint=torch.load(a.resume,map_location=device,weights_only=False)
+        checkpoint=resume_checkpoint
         if checkpoint["bank_sha256"]!=env.bank.hash or checkpoint["contract"]!=contract or tuple(checkpoint["frozen_hashes"])!=frozen:
             raise ValueError("Resume provenance mismatch")
         for key in models:
@@ -239,7 +299,6 @@ def train(a):
         env.rng.set_state(checkpoint["env_rng"].cpu())
         env.bank.success_ema.copy_(checkpoint["success_ema"])
         env.bank.visit_count.copy_(checkpoint["visit_count"])
-        phase_start,update_start=checkpoint["phase"],checkpoint["next_update"]
         total_steps,total_updates=checkpoint["total_steps"],checkpoint["total_updates"]
     started=time.monotonic(); stop_requested=False
     def stop_handler(*_):
@@ -256,6 +315,7 @@ def train(a):
             cuda_rng=torch.cuda.get_rng_state_all(),env_rng=env.rng.get_state(),
             success_ema=env.bank.success_ema,visit_count=env.bank.visit_count,
             phase=phase,next_update=update,total_steps=total_steps,
+            phase_transitions=list(phase_progress),phase_budget_transitions=list(phase_budgets),
             total_updates=total_updates,bank_sha256=env.bank.hash,contract=contract,frozen_hashes=frozen,
             resume_semantics="learner/optimizer/RNG continuation; fresh randomized episodes, not bit-exact PhysX replay",robot_actuation=False)
         temporary=path.with_suffix(".pt.partial")
@@ -279,7 +339,7 @@ def train(a):
             evaluated_steps+=1
             if evaluated_steps%32==0:
                 if (any(d["pid"] not in a.reviewed_deployment_pid for d in gpu_robot_deployments())
-                        or torch.cuda.mem_get_info()[0]<2*2**30):
+                        or torch.cuda.mem_get_info()[0]<a.min_free_gpu_gib*2**30):
                     print("Evaluation interrupted for shared-GPU safety/headroom",flush=True)
                     stop_requested=True
                 if stop_requested or time.monotonic()-started>a.hours*3600:
@@ -298,14 +358,17 @@ def train(a):
         env.reset(torch.arange(a.num_envs,device=device))
         return env.observe()
     for phase_id,(family,kind,updates) in enumerate(phases):
-        if phase_id<phase_start: continue
+        if phase_progress[phase_id]>=phase_budgets[phase_id]: continue
         policy=models[family]; optimizer=optimizers[family]
         env.family="all" if family=="generalist" else family
         env.split="train";env.max_difficulty=1.
         env.reset(torch.arange(a.num_envs,device=device));obs=env.observe()
-        for update in range(update_start if phase_id==phase_start else 0,updates):
+        chunk=a.num_envs*cfg["unroll_length"]
+        first_update=phase_progress[phase_id]//chunk
+        remaining=math.ceil((phase_budgets[phase_id]-phase_progress[phase_id])/chunk)
+        for update in range(first_update,first_update+remaining):
             tick=time.monotonic(); rows=[]
-            beta=max(0.,1.-update/max(1,updates*.75)) if kind=="transfer" else 0.
+            beta=max(0.,1.-phase_progress[phase_id]/max(1,phase_budgets[phase_id]*.75)) if kind=="transfer" else 0.
             for _ in range(cfg["unroll_length"]):
                 with torch.no_grad():
                     dist=policy.distribution(obs)
@@ -372,10 +435,13 @@ def train(a):
                     optimizer.step();total_updates+=1
                     statistics.append(torch.stack((loss.detach(),leg_loss.detach(),retention_loss.detach(),value_loss.detach())))
             total_steps+=count
+            phase_progress[phase_id]+=count
+            phase_complete=phase_progress[phase_id]>=phase_budgets[phase_id]
             average=torch.stack(statistics).mean(0).tolist()
             episodes=env.completed;env.completed=[]
             metrics=dict(total_steps=total_steps,optimizer_updates=total_updates,phase=phase_id,family=family,kind=kind,
                 phase_update=update,teacher_fraction=beta,loss=average[0],leg_mse=average[1],retention_mse=average[2],
+                phase_transitions=phase_progress[phase_id],phase_budget_transitions=phase_budgets[phase_id],
                 value_loss=average[3],reward=float(data["reward"].mean()),
                 env_steps_per_second=count/(time.monotonic()-tick),episodes=len(episodes),
                 success_rate=sum(e["success"] for e in episodes)/max(1,len(episodes)),
@@ -386,6 +452,7 @@ def train(a):
                 cuda_allocated_gb=torch.cuda.memory_allocated()/2**30,
                 cuda_reserved_gb=torch.cuda.memory_reserved()/2**30,
                 cuda_peak_allocated_gb=torch.cuda.max_memory_allocated()/2**30,
+                gpu_process_gib=process_gpu_memory_gib(),
                 cuda_free_gb=torch.cuda.mem_get_info()[0]/2**30,elapsed_s=time.monotonic()-started)
             log.write(json.dumps(metrics)+"\n");log.flush()
             (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="training",robot_actuation=False))+"\n")
@@ -398,14 +465,14 @@ def train(a):
             if shutil.disk_usage(a.run).free<5*2**30:
                 print("Low free disk: saving and stopping before filling the filesystem",flush=True)
                 stop_requested=True
-            if metrics["cuda_free_gb"]<2.:
-                print("Less than 2 GiB GPU headroom: saving and stopping",flush=True)
+            if metrics["cuda_free_gb"]<a.min_free_gpu_gib:
+                print("GPU headroom below configured reserve: saving and stopping",flush=True)
                 stop_requested=True
-            if not stop_requested and not a.smoke_updates and ((update+1)%250==0 or update+1==updates):
+            if not stop_requested and not a.smoke_updates and ((update+1)%250==0 or phase_complete):
                 save(phase_id,update+1)
                 (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="evaluating",robot_actuation=False))+"\n")
                 obs=evaluate(policy,family)
-            if update%25==0 or update+1==updates or stop_requested or time.monotonic()-started>a.hours*3600:
+            if update%25==0 or phase_complete or stop_requested or time.monotonic()-started>a.hours*3600:
                 if policy.student.frozen_hash()!=frozen:
                     raise ValueError("Frozen decoder or teacher modified")
                 save(phase_id,update+1)

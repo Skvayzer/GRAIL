@@ -2,6 +2,21 @@
 
 ## Current state — 12 September 2026
 
+**Resize in progress:** the user requested at least 20 GB of process GPU use.
+The 2,048-env run was stopped checkpointed at 4,194,304 transitions (completed
+lateral teacher transfer). Its checkpoint is retained; it is no longer running.
+The 16,384-env capacity test passed all four optimizer phases at 17,176 env-steps/s,
+with 12.79 GiB Torch-reserved and 1.27 GiB minimum device-free memory (about
+19.8 GiB total process VRAM). A 16,640-env continuation is the next measured
+candidate; it resumes the original learner/optimizers, not the capacity-test weights.
+
+Resizing preserves per-stage transition counters and budgets, rather than
+interpreting the old 2,048-env rollout index at the new vector size. A last full
+rollout can overshoot a stage's target by less than one vector batch. Counters,
+checkpoint hash and parent run are recorded. Physics episodes restart fresh.
+
+The following documents the original 2,048-env launch and its evidence:
+
 The G1 deployment has stopped, and the user authorized sharing the remaining
 GPU resources with the other compute job. The 2048-env four-phase optimizer
 smoke passed: 262,144 transitions, 1,024 optimizer steps, finite checkpoints,
@@ -184,7 +199,7 @@ tail -f research/runs/new_cat_full/worker.log
 # To stop, inspect process.json and send SIGTERM to that run's exact worker PID.
 ```
 
-For the active September 12 run:
+For the original September 12 run (now stopped for resizing):
 
 ```bash
 tail -f research/runs/20260912_cat_generated_full_shared_gpu_v1/worker.log
