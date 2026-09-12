@@ -8,6 +8,7 @@ whole-body architectural adaptations, simulation-only. No SDK/ROS imports.
 import argparse
 import copy
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -16,6 +17,13 @@ import sys
 import time
 
 ROOT=Path(__file__).resolve().parent
+
+
+def memory_fraction(limit_gib,total_bytes):
+    """Torch allocator cap only; PhysX/Kit need additional GPU memory headroom."""
+    if not math.isfinite(limit_gib) or not 0<limit_gib<total_bytes/2**30:
+        raise ValueError("Torch memory limit must be positive and below GPU capacity")
+    return limit_gib*2**30/total_bytes
 
 
 def gpu_robot_deployments():
@@ -47,6 +55,8 @@ def main():
     p.add_argument("--dagger-updates",type=int,default=None)
     p.add_argument("--generalist-ppo-updates",type=int,default=None)
     p.add_argument("--hours",type=float,default=24.)
+    p.add_argument("--torch-memory-limit-gib",type=float,default=14.,
+        help="Torch allocator ceiling; not a total-process limit (Kit/PhysX allocate separately)")
     p.add_argument("--wandb-mode",choices=("online","offline","disabled"),default="online")
     p.add_argument("--resume",type=Path)
     p.add_argument("--seed",type=int,default=20260912)
@@ -57,7 +67,7 @@ def main():
         help="Only after operator confirms this exact GPU deployment PID is not controlling hardware")
     p.add_argument("--worker",action="store_true",help=argparse.SUPPRESS)
     a=p.parse_args()
-    if not a.accept_isaac_eula or not 0<a.hours<=48 or a.smoke_updates<0:
+    if not a.accept_isaac_eula or not 0<a.hours<=48 or a.smoke_updates<0 or not math.isfinite(a.torch_memory_limit_gib) or a.torch_memory_limit_gib<=0:
         p.error("Explicit EULA acceptance and bounded runtime required")
     if a.no_randomization and not a.benchmark:
         p.error("Randomization cannot be disabled for distributional training")
@@ -122,6 +132,14 @@ def train(a):
     torch.set_num_threads(4); torch.manual_seed(a.seed)
     torch.backends.cuda.matmul.allow_tf32=False
     device="cuda:0"
+    free_bytes,total_bytes=torch.cuda.mem_get_info()
+    fraction=memory_fraction(a.torch_memory_limit_gib,total_bytes)
+    if free_bytes<4*2**30:
+        raise ValueError("Less than 4 GiB GPU headroom at learner startup; refusing new training")
+    torch.cuda.set_per_process_memory_fraction(fraction,device)
+    print("GPU_BUDGET",json.dumps(dict(torch_limit_gib=a.torch_memory_limit_gib,
+        free_gib=free_bytes/2**30,total_gib=total_bytes/2**30,
+        scope="Torch allocator only; Kit/PhysX memory separately monitored")),flush=True)
     actor,contract=load_grail(a.context)
     expert=teacher().to(device)
     prototype=DistillStudent(actor,contract,expert.cpu()).to(device)
@@ -192,6 +210,9 @@ def train(a):
         phases=[("lateral","transfer",a.smoke_updates),("lateral","ppo",1),
             ("generalist","dagger",1),("generalist","ppo",1)]
     config=dict(schema="cat-generated-whole-body-training-v1",args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},
+        source_git_revision=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
+        source_files_sha256={name:sha(ROOT/name) for name in ("cat_parallel_train.py","cat_parallel_env.py",
+            "cat_parallel_policy.py","cat_parallel_core.py","cat_distill_model.py","cat_direct_isaac.py","cat_direct_native.py")},
         native_recipe=source,phases=phases,bank_sha256=env.bank.hash,
         observation="CAT 162D noisy/delayed field + GRAIL 1029D; virtual reference object, no live LiDAR",
         action="64D pre-tanh Gaussian -> bounded motor tokens -> frozen GRAIL 29-joint decoder",
@@ -243,23 +264,34 @@ def train(a):
         return path
     @torch.no_grad()
     def evaluate(policy,family):
+        nonlocal stop_requested
         previous_family=env.family
         env.family="all" if family=="generalist" else family
         env.split="validation"
         env.completed=[]
         env.reset(torch.arange(a.num_envs,device=device));evaluation_obs=env.observe()
         used=set(env.scene.tolist())
+        evaluated_steps=0
         for _ in range(env.config["episode_length"]):
             target=policy.targets(evaluation_obs,policy.mean(evaluation_obs))[:,env.grail_order]
             evaluation_obs,*_=env.step(target)
             used.update(env.scene.tolist())
+            evaluated_steps+=1
+            if evaluated_steps%32==0:
+                if (any(d["pid"] not in a.reviewed_deployment_pid for d in gpu_robot_deployments())
+                        or torch.cuda.mem_get_info()[0]<2*2**30):
+                    print("Evaluation interrupted for shared-GPU safety/headroom",flush=True)
+                    stop_requested=True
+                if stop_requested or time.monotonic()-started>a.hours*3600:
+                    break
         episodes=env.completed
         result=dict(total_steps=total_steps,family=family,teacher_fraction=0.,
             split="held_out_geometry",scenes=len(used),episodes=len(episodes),
             success_rate=sum(e["success"] for e in episodes)/max(1,len(episodes)),
             fall_rate=sum(e["fall"] for e in episodes)/max(1,len(episodes)),
             collision_rate=sum(e["collision"] for e in episodes)/max(1,len(episodes)),
-            running_unfinished_envs=a.num_envs,episode_records=episodes)
+            running_unfinished_envs=a.num_envs,episode_records=episodes,
+            evaluated_steps=evaluated_steps,full_horizon=evaluated_steps==env.config["episode_length"])
         (a.run/f"evaluation_{total_steps:012d}.json").write_text(json.dumps(result,indent=2)+"\n")
         wb.log({"eval/"+k:v for k,v in result.items() if isinstance(v,(int,float))},step=total_steps)
         env.completed=[];env.split="train";env.family=previous_family
@@ -351,7 +383,10 @@ def train(a):
                 collision_rate=sum(e["collision"] for e in episodes)/max(1,len(episodes)),
                 unique_train_scenes_visited=sum(int(env.bank.visit_count[i])>0 for i,r in enumerate(env.bank.rows) if r["split"]=="train"),
                 unique_validation_scenes_visited=sum(int(env.bank.visit_count[i])>0 for i,r in enumerate(env.bank.rows) if r["split"]=="validation"),
-                cuda_allocated_gb=torch.cuda.memory_allocated()/2**30,elapsed_s=time.monotonic()-started)
+                cuda_allocated_gb=torch.cuda.memory_allocated()/2**30,
+                cuda_reserved_gb=torch.cuda.memory_reserved()/2**30,
+                cuda_peak_allocated_gb=torch.cuda.max_memory_allocated()/2**30,
+                cuda_free_gb=torch.cuda.mem_get_info()[0]/2**30,elapsed_s=time.monotonic()-started)
             log.write(json.dumps(metrics)+"\n");log.flush()
             (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="training",robot_actuation=False))+"\n")
             wb.log({k:v for k,v in metrics.items() if isinstance(v,(int,float))},step=total_steps)
@@ -363,7 +398,12 @@ def train(a):
             if shutil.disk_usage(a.run).free<5*2**30:
                 print("Low free disk: saving and stopping before filling the filesystem",flush=True)
                 stop_requested=True
-            if not a.smoke_updates and ((update+1)%250==0 or update+1==updates):
+            if metrics["cuda_free_gb"]<2.:
+                print("Less than 2 GiB GPU headroom: saving and stopping",flush=True)
+                stop_requested=True
+            if not stop_requested and not a.smoke_updates and ((update+1)%250==0 or update+1==updates):
+                save(phase_id,update+1)
+                (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="evaluating",robot_actuation=False))+"\n")
                 obs=evaluate(policy,family)
             if update%25==0 or update+1==updates or stop_requested or time.monotonic()-started>a.hours*3600:
                 if policy.student.frozen_hash()!=frozen:
@@ -373,6 +413,8 @@ def train(a):
                 (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="stopped_checkpointed",robot_actuation=False))+"\n")
                 log.close();wb.finish();return
         save(phase_id+1,0)
+    (a.run/"status.json").write_text(json.dumps(dict(total_steps=total_steps,
+        optimizer_updates=total_updates,state="completed",robot_actuation=False))+"\n")
     log.close();wb.finish()
 
 

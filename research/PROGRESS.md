@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-09-12 — shared-GPU optimizer smoke passed
+
+- G1 deployment no longer running; user explicitly authorized using remaining
+  GPU memory alongside the other compute job. Other users' jobs untouched.
+- `20260912_cat_parallel_smoke_shared_gpu_v1`: 2,048 environments, four phases
+  (teacher transfer/PPO/whole-body DAgger/PPO), 262,144 transitions and 1,024
+  optimizer steps. CPU checkpoint audit passes finite tensors, updated adapter
+  and stochastic-policy parameters, counters, frozen provenance and hashes.
+- Mean learner throughput 3,782 env-steps/s; peak Torch-reserved 2.63 GiB,
+  minimum device-free 15.56 GiB. These are plumbing/performance checks, not
+  evidence of a trained navigation policy. Full scheduled training is next.
+- Added 14 GiB Torch allocator cap, low-headroom checkpointed stopping,
+  evaluation-time deployment checks, source revision/file hashes and terminal
+  status. Seven targeted CPU tests pass. Simulator allocations are additional
+  to the Torch cap; actual process VRAM was also inspected using NVIDIA tools.
+
 ## 2026-09-12 — generated training layout videos
 
 - Created four 12-second 720p MP4s: lateral, low, overhead and mixed. Each uses

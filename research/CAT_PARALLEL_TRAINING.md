@@ -2,17 +2,24 @@
 
 ## Current state — 12 September 2026
 
-The single-scene pilot is superseded by an implemented generated-bank GPU task
-and staged learner. **Sustained training has not started yet.** The 2048-env
-physics benchmark passed, but the integrated optimizer smoke was stopped when
-another user's potentially live G1 deployment was discovered on this GPU.
-An operator must confirm that it is not controlling hardware, or stop that
-deployment, before GPU training resumes. No other user's process was modified.
+The G1 deployment has stopped, and the user authorized sharing the remaining
+GPU resources with the other compute job. The 2048-env four-phase optimizer
+smoke passed: 262,144 transitions, 1,024 optimizer steps, finite checkpoints,
+changed transfer/distillation/PPO weights and unchanged frozen provenance.
+Measured end-to-end throughput was about 3,782 environment-steps/s; at least
+15.56 GiB device memory remained free. This validates the learner plumbing,
+**not successful learned navigation**. The sustained run is being launched.
+No other user's process was modified.
 
 The new launch preflight refuses unreviewed robot-deployment GPU processes.
 During training it checks again at update boundaries and checkpoints/stops if a
 new one appears. This is a conservative coordination guard, not hard real-time
 GPU isolation. Reserve the GPU appropriately when operating physical robots.
+The shared-GPU launch caps the PyTorch allocator at 14 GiB (Kit/PhysX allocate
+separately); it stops checkpointed if device headroom falls below 2 GiB.
+Evaluations also check for deployments/headroom every 32 simulation steps.
+Actual smoke usage was much smaller: at most 2.63 GiB Torch-reserved memory,
+with roughly 5 GiB total process GPU use including simulator allocations.
 
 ## Actual generated distribution
 
@@ -125,9 +132,10 @@ Default transition budgets are independent of environment count:
 
 At 2048 environments these are 64 transfer and 256 PPO rollout updates per
 family, followed by 128 DAgger and 2048 generalist PPO rollout updates. Optimizer
-update count is reported separately. Actual end-to-end learner throughput still
-requires the pending integrated smoke; pure physics implies at least ~13 hours
-on the measured shared-GPU load, before learning/evaluation overhead.
+update count is reported separately. The shared-GPU optimizer smoke measured
+about 3,782 environment-steps/s, implying roughly 16.6 hours for the transition
+budget alone, plus held-out evaluation and initialization. Full-run throughput
+will vary with other workloads and episode/reset behavior; the 24h cap remains.
 
 Held-out-geometry evaluations have no teacher assistance and run full 20 s
 episodes. Success requires remaining upright, no post-grace collision, and
@@ -147,7 +155,7 @@ a real full-run URL will be recorded only when that run actually starts.
 
 ## Reproduction and next launch
 
-From `~/robotics/GRAIL-CAT`, after resolving GPU deployment coordination:
+From `~/robotics/GRAIL-CAT`, with no unreviewed GPU robot deployment running:
 
 ```bash
 # Existing verified bank: research/runs/20260912_cat_generated_bank_v2
@@ -161,7 +169,7 @@ From `~/robotics/GRAIL-CAT`, after resolving GPU deployment coordination:
 
 # Only after smoke completes without errors and its checkpoints are verified:
 .venv/bin/python research/cat_parallel_train.py research/runs/new_cat_full \
-  --num-envs 2048 --hours 24 --wandb-mode online \
+  --num-envs 2048 --hours 24 --wandb-mode online --torch-memory-limit-gib 14 \
   --accept-isaac-eula --detach
 
 tail -f research/runs/new_cat_full/worker.log
@@ -186,7 +194,10 @@ Normally stop the conflicting deployment through its operator first.
   These arithmetic checks are not physics learning or navigation success.
 - 249 CPU tests pass; 8 GPU tests deliberately skipped while deployment is active.
 - GPU physics benchmarks at 16/256/2048 environments pass. Integrated optimizer
-  smoke and the sustained run are pending the operator clarification above.
+  smoke `20260912_cat_parallel_smoke_shared_gpu_v1` completed all four phases.
+  `check_cat_parallel_smoke.py` verifies finite checkpoints, increasing counters,
+  changed adapter/PPO parameters and latest-checkpoint checksum on CPU.
+  Its `audit.json` explicitly does not claim navigation success.
 
 Local evidence: `research/runs/20260912_cat_generated_bank_v2/`,
 `20260912_cat_parallel_bench16_v2/`, `20260912_cat_parallel_bench256/`,
