@@ -1,5 +1,42 @@
 # Progress
 
+## 2026-09-12 — failed-night diagnosis and CAT-style redirection
+
+- Overnight `20260911T220756_837720Z_m2_train` failed at 135 iterations /
+  17,280 transitions / 514 optimizer steps, not after a full night. Its
+  invalid-final-observation guard aborted collection; 133/135 PPO updates
+  stopped early at the KL bound. Reward remained about 0.119–0.120. Historical
+  W&B GPU sampling averaged 40.45%, with about 4.3GiB allocated. The valid
+  iteration-100 checkpoint contains 420 updates. No learned-avoidance claim.
+- Added diagnostic snapshots, exception-path checkpoint/counter recovery,
+  optional independent normalized actor/critic with separate gradient clipping,
+  and support-route failure episode termination. Replica audit/storage limits
+  support up to 16 for the experimental M2 path. These pass unit tests but do
+  **not** have an extended live-training validation or confirmed fix of the
+  precise original invalid component; the old log did not record that component.
+- Diagnostic rerun `20260912T091212_927858Z_m2_train` was stopped intentionally
+  after the user's redirection to CAT's learning style. GPU contention made
+  iterations about 30 seconds versus 2.3 seconds previously. Only our launcher
+  was signalled; the other user's workload was left untouched. No overnight
+  training process is left running by this work.
+- User requested CAT's recipe, without further bespoke residual-trainer work.
+  Downloaded the 13-file / 5,549,990-byte released generalist parameter tree
+  (actor/value/normalizer, not optimizer), pinned and hash-verified. Exported
+  frozen PyTorch teacher; native Brax parity on 64 inputs has maximum action
+  error 2.78279185295105e-6. Teacher integration/distillation into GRAIL remains
+  explicitly unimplemented; GRAIL remains the whole-body controller goal.
+- Actual pinned generalist config: 37 random scenes, 36 locally available,
+  missing `D8G2L3O2S13`; source defaults include 65,536 environments over up to
+  eight devices. Added exact-recipe inventory/scaled hardware profile utility.
+  This is not 37 live Isaac environments or a completed training launch.
+- Four deterministic new lateral CAT scene candidates generated in bank
+  `20260912T091558_805884Z_cat_curriculum`; all source geometries exported,
+  none automatically admitted on terrain. See CAT_STYLE.md for next integration.
+- Final verification: 222 tests pass; git diff whitespace check passes. The
+  PyTorch export and exact 37-scene / 512-environment hardware-profile recipe
+  are present under `research/artifacts/cat_teacher_v1/`. No new policy updates
+  were performed after the user's CAT-style redirection.
+
 ## 2026-09-12 — overnight pilot started; first periodic checkpoint verified
 
 - Final locomotion setup suite `20260911T220207_819774Z_m2_evaluation_suite`

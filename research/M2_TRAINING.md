@@ -1,5 +1,11 @@
 # M2 training and overnight operation
 
+**Current status (12 September): the overnight run below failed at iteration
+135 after about six minutes. It did not complete overnight training. The user
+has redirected work to CAT-style pretrained specialist/distillation learning;
+see [CAT_STYLE.md](CAT_STYLE.md). Do not treat this historical M2 pilot as that
+pipeline or restart it as the next overnight training run.**
+
 Current entry points: `m2_train.py`, `m2_evaluate.py`, `m2_results.py`,
 `m2_job.py`. The user approved the environment review and, on 2026-09-12,
 explicitly requested an overnight simulation training run. No real robot is
