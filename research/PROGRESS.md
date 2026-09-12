@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-09-12 — resized training running at 16,768 environments / 21.41 GB VRAM
+
+- The temporary G1 GPU deployment exited naturally. Verified no GPU robot
+  deployment before starting `20260912_cat_generated_full_16768_v1` at `5bb3265`.
+  PID 2825440 at launch; W&B `https://wandb.ai/skvayzer/grail-cat/runs/eartbpzz`.
+  Runtime deployment checks remain enabled, with no exemptions. No robot access
+  or actuation; the other user's 9,876 MiB compute job was left running.
+- Resumed the verified 6,856,704-transition checkpoint, retaining all earlier
+  production progress. At audit: 9,539,584 transitions / 18,944 optimizer steps.
+  Latest audited checkpoint `checkpoint_000009539584.pt` SHA-256:
+  `2bce54b671bb2949213feea8c42f5d52e689816039115b296bdfb68c0950fe83`.
+  CPU checks pass finite tensors, counters, updated PPO parameters and unchanged
+  frozen provenance. W&B reports running; 12 targeted CPU tests pass.
+- Measured steady process use 19.94 GiB = 21.41 decimal GB; approximately 1.08
+  GiB CUDA device-free. This exceeds 20 decimal GB, but is slightly below 20 GiB.
+  Kept the 1 GiB stop reserve rather than padding allocations or risking another
+  batch increase. Torch allocator cap 17 GiB; simulator allocations are separate.
+- Recent learner throughput about 11.2–12.1k environment-steps/s, first update
+  17.2k. Generated bank and transition budgets unchanged. Lateral transfer is
+  complete and lateral PPO continues; early success remains zero. Finite losses
+  and checkpoint updates are not evidence of successful navigation yet.
+
 ## 2026-09-12 — 16,640-env continuation verified; new deployment blocks final resize
 
 - Run `20260912_cat_generated_full_16640_v1` restored the original weights,
