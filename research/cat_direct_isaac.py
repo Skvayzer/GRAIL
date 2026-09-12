@@ -54,7 +54,20 @@ def main():
     parser.add_argument("--render-replay", action="store_true", help="Render saved MuJoCo/Isaac paths in a common Isaac scene; no physics steps")
     parser.add_argument("--accept-isaac-eula", action="store_true")
     parser.add_argument("--worker-outcome", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--distill-checkpoint", type=Path, help="Opt-in whole-body CAT/GRAIL student evaluation; no updates")
+    parser.add_argument("--distill-run", type=Path, help="Hash-verified flat distillation dataset directory")
+    parser.add_argument("--distill-seed", type=int, default=6)
+    parser.add_argument("--distill-collect", action="store_true", help="Save CAT labels on student-visited flat states")
+    parser.add_argument("--distill-teacher-fraction", type=float, default=0.)
     args = parser.parse_args()
+    if bool(args.distill_checkpoint) != bool(args.distill_run) or (args.distill_checkpoint and (args.render_replay or args.inspect_only)):
+        parser.error("Student evaluation needs both dataset and checkpoint, no replay/inspection")
+    if not 0 <= args.distill_seed <= 1000 or not 0 <= args.distill_teacher_fraction <= 1:
+        parser.error("Invalid seed or teacher fraction")
+    if args.distill_collect and (not args.distill_checkpoint or args.distill_seed >= 6 or args.scene != "side1"):
+        parser.error("DAgger collection requires flat side1 training seeds 0..5, not held-out tests")
+    if args.distill_teacher_fraction and not args.distill_collect:
+        parser.error("Teacher assistance is for explicitly labelled DAgger collection only")
     if not args.accept_isaac_eula or not 1 <= args.steps <= 2000:
         parser.error("Explicit EULA acceptance and 1..2000 steps required")
     args.run = args.run.resolve()
@@ -109,6 +122,9 @@ def run(args):
     torch.set_num_threads(2)
     enable_extension("isaacsim.asset.importer.mjcf")
     player, constants, contract = make_player(args.scene)
+    if args.distill_checkpoint:
+        from cat_distill import reset_player
+        reset_player(player, constants, args.distill_seed)
     model = player.mj_model
     native_names = [model.actuator(i).name for i in range(model.nu)]
     xml = args.run/"cat_robot_v2.xml"
@@ -216,6 +232,12 @@ def run(args):
     robot.update(.002)
     player_state = player.reset()
     policy = teacher()
+    student = None
+    dagger_rows = []
+    mix_rng = np.random.default_rng(args.distill_seed+1000)
+    if args.distill_checkpoint:
+        from cat_distill_evaluate import StudentController
+        student = StudentController(args.distill_run, args.distill_checkpoint, native_names)
     rows, started, max_fk_error = [], time.monotonic(), 0.
     # Explicit torque computation includes native passive damping; passive dry
     # friction is configured using PhysX 5's joint friction model below.
@@ -247,10 +269,20 @@ def run(args):
     if max_fk_error > .001:
         raise ValueError(f"Imported robot frame error {max_fk_error}m")
     for step in range(args.steps):
-        action = act(policy, player_state)
-        targets = constants.DEFAULT_QPOS[7:].copy()
-        targets[player.action_joint_ids] = np.clip(player_state.info["motor_targets"][player.action_joint_ids]
-            +action*player._config.action_scale, player._soft_lowers[player.action_joint_ids], player._soft_uppers[player.action_joint_ids])
+        if student is None:
+            action = act(policy, player_state)
+            targets = constants.DEFAULT_QPOS[7:].copy()
+            targets[player.action_joint_ids] = np.clip(player_state.info["motor_targets"][player.action_joint_ids]
+                +action*player._config.action_scale, player._soft_lowers[player.action_joint_ids], player._soft_uppers[player.action_joint_ids])
+        else:
+            targets = student.targets(player, player_state)
+            if args.distill_collect:
+                label, valid = student.label(player, player_state, policy)
+                if valid:
+                    dagger_rows.append(dict(**label, episode=np.int64(300+args.distill_seed), validation=np.bool_(False)))
+                if mix_rng.random() < args.distill_teacher_fraction:
+                    targets[player.action_joint_ids] = label["target"][student.model.legs]
+            action = (targets[player.action_joint_ids]-player_state.info["motor_targets"][player.action_joint_ids])/.5
         player_state.info["motor_targets"] = targets.copy()
         target = tensor(targets[order])
         for substep in range(10):
@@ -270,10 +302,28 @@ def run(args):
             print("DIRECT_CAT_STEP", step, player.mj_data.qpos[:3].tolist(), flush=True)
         if rows[-1]["head"][2] < .7 or player.mj_data.qpos[0] >= 1.9:
             break
-    result = save_episode(args.run, args.scene, "isaac", rows, player, time.monotonic()-started)
+    result = save_episode(args.run, args.scene, "isaac", rows, player, time.monotonic()-started,
+        dict(policy="GRAIL frozen 29-joint decoder + CAT-trained motor-token adapter", grail_loaded=True)
+        if student is not None else None)
     result.update(imported_body_fk_max_error_m=max_fk_error, physics_device="cpu", control_dt=.02, physics_dt=.002,
         source_mesh_sha256=digest(mesh_path), mesh_translation=scene_position.tolist(),
         contact_mode="native explicit pairs; clutter is SDF-only as in original CAT")
+    if student is not None:
+        result.update(policy="GRAIL frozen 29-joint decoder + CAT-trained motor-token adapter", grail_loaded=True,
+            checkpoint_sha256=student.checkpoint_hash, checkpoint_updates=student.step, applied_joint_count=29,
+            soft_clipped_target_fraction=student.clip_count/student.target_count,
+            scope="native CAT dynamics in Isaac; not full GRAIL terrain task")
+        result.update(teacher_fraction=args.distill_teacher_fraction, dagger_collection=args.distill_collect)
+    if args.distill_collect:
+        if not dagger_rows:
+            raise ValueError("No admitted Isaac student-state teacher labels")
+        packet = args.run/"dagger.npz"
+        np.savez_compressed(packet, **{k: np.stack([r[k] for r in dagger_rows]) for k in dagger_rows[0]})
+        (args.run/"dagger.json").write_text(json.dumps(dict(sha256=digest(packet),
+            source_dataset_sha256=digest(args.distill_run/"dataset.npz"), checkpoint_sha256=student.checkpoint_hash,
+            training_seeds=[args.distill_seed], frames=len(dagger_rows), teacher_fraction=args.distill_teacher_fraction,
+            physics="Isaac CPU PhysX", support_boundary="native kinematic ground-contact check",
+            robot_actuation=False), indent=2)+"\n")
     (args.run/f"{args.scene}_isaac.json").write_text(json.dumps(result, indent=2)+"\n")
 
 

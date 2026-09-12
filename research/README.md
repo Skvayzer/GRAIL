@@ -37,7 +37,9 @@ completed milestone from the existence of a launcher or configuration.
 failed four-environment M2 overnight recipe with pretrained CAT teacher transfer
 and its specialist/generalist learning style. Live Isaac teacher-label collection,
 native body-frame parity and offline loss gradients through GRAIL now pass;
-actual distillation updates/multi-scene training are not connected yet.
+actual flat distillation updates and DAgger now run, but multi-scene training
+and successful unassisted traversal remain pending. See
+[CAT_DISTILLATION.md](CAT_DISTILLATION.md) for the first learning results.
 The frozen CAT checkpoint has also now directly controlled Isaac in three
 native fixtures: [direct engine comparison](CAT_DIRECT_EVALUATION.md). Numerical
 transfer checks pass, but one overhead clearance violation remains; this is

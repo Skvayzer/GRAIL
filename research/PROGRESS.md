@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-09-12 — actual flat CAT-to-GRAIL updates and first DAgger round
+
+- Implemented a 337,856-parameter CAT-feature motor-token adapter through the
+  real frozen GRAIL decoder, outputting all 29 joint targets. CAT supervises
+  only legs; GRAIL nominal upper posture and recorded GRAIL action retention
+  are separate losses. No claimed arm avoidance or manipulation training.
+- Ran 200-update strict-boundary and 600-update contact-aware pilots, then
+  800 further updates after 960 student-state DAgger labels (1400 cumulative).
+  Actual Adam/checkpoint/RNG resume is bit-exact; decoder/teacher stay frozen.
+- Confirmed live-recorded GRAIL joint/action/gravity history layout. Known flat
+  foot-floor boundary handling is narrow and counted; no stair guard relaxed.
+  Parent/split/hash checks prevent held-out starts entering DAgger aggregation.
+- Initial unassisted MuJoCo tests fell; after DAgger both held-out starts stayed
+  upright for 5 s but did not reach the exit. Assisted Isaac collection advanced
+  but violated native clearance. Loss improvement is not called navigation
+  success. Full details and reproduction commands are in CAT_DISTILLATION.md.
+- No robot access or actuation. CPU training and bounded CPU-physics simulations
+  leave the other user's GPU workload untouched. Further Isaac-labelled DAgger
+  and final unassisted checks are being recorded separately.
+
 ## 2026-09-12 — CAT directly controlling Isaac, paired with native MuJoCo
 
 - Added a bounded simulation-only runner using unchanged released CAT weights,

@@ -51,12 +51,13 @@ zero-padding twelve actions is not a whole-body pretrained policy.
 
 ## What remains (not claimed implemented)
 
-The named-articulation bridge is now wired into live Isaac rollouts, with saved
-same-state teacher labels, independent native-frame verification and offline
-loss gradients through the real frozen GRAIL decoder (below). Actual whole-body
-distillation updates and the multi-scene curriculum trainer are not connected.
-No renewed overnight run should be described as ready until that path
-has a real rollout/update/checkpoint test and comparison with its teachers.
+Actual flat CAT-to-GRAIL decoder updates, student-controlled simulation,
+teacher-assisted DAgger aggregation and exact save/resume now run. See
+[CAT_DISTILLATION.md](CAT_DISTILLATION.md) for the initial results and limitations.
+The first student has not passed unassisted obstacle traversal. Multi-scene
+parallel curriculum, full GRAIL terrain-task integration, retention rollouts
+and PPO are not connected. No renewed overnight run should be described as
+ready merely because supervised losses and checkpoint tests pass.
 The old M2 pilot is not this pipeline and its overnight command must not be used
 as a substitute. No custom-model training is left running after this change.
 

@@ -105,7 +105,7 @@ def snapshot(player, state, action):
                 clearance=np.concatenate([np.ravel(state.info[k+"df"]) for k in ("head", "feet", "hands")]))
 
 
-def save_episode(run, scene, engine, rows, player, elapsed):
+def save_episode(run, scene, engine, rows, player, elapsed, metadata=None):
     archive = run/f"{scene}_{engine}.npz"
     arrays = {k: np.stack([row[k] for row in rows]) for k in rows[0]}
     np.savez_compressed(archive, **arrays)
@@ -122,6 +122,7 @@ def save_episode(run, scene, engine, rows, player, elapsed):
         policy="unchanged released CAT generalist weights, verified PyTorch export",
         grail_loaded=False, optimizer_steps=0, robot_actuation=False,
         archive=archive.name, sha256=digest(archive))
+    result.update(metadata or {})
     (run/f"{scene}_{engine}.json").write_text(json.dumps(result, indent=2)+"\n")
     print(json.dumps(result), flush=True)
     return result
