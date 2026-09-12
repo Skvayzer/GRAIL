@@ -332,7 +332,7 @@ def run(args):
     (args.run/f"{args.scene}_isaac.json").write_text(json.dumps(result, indent=2)+"\n")
 
 
-def configure_contacts(stage, model, colliders):
+def configure_contacts(stage, model, colliders, robot_prefix="/World/Robot"):
     from pxr import UsdPhysics
     # Importer's collider names are checked, never silently assume that every
     # visual mesh should collide (native model uses explicit contact pairs).
@@ -343,7 +343,7 @@ def configure_contacts(stage, model, colliders):
         name = names[0] if len(names) == 1 else prim.GetName()
         if str(prim.GetPath()).startswith("/World/Ground"):
             by_name["floor"] = prim
-        elif str(prim.GetPath()).startswith("/World/Robot") and name in pair_names:
+        elif str(prim.GetPath()).startswith(robot_prefix) and name in pair_names:
             by_name[name] = prim
         else:
             UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Set(False)
@@ -358,12 +358,12 @@ def configure_contacts(stage, model, colliders):
                         if name != other_name and frozenset((name, other_name)) not in allowed])
 
 
-def add_native_pair_shapes(stage, model):
+def add_native_pair_shapes(stage, model, robot_prefix="/World/Robot"):
     import mujoco
     import isaaclab.sim as sim_utils
     from pxr import UsdGeom, UsdPhysics
     bodies = {p.GetName(): p for p in stage.Traverse() if p.HasAPI(UsdPhysics.RigidBodyAPI)
-              and str(p.GetPath()).startswith("/World/Robot/")}
+              and str(p.GetPath()).startswith(robot_prefix+"/")}
     required = set(model.pair_geom1.tolist()+model.pair_geom2.tolist())
     for geom_id in required:
         geom = model.geom(geom_id)

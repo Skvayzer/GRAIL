@@ -1,5 +1,9 @@
 # CAT-style learning: current direction
 
+**Latest:** [CAT_PARALLEL_TRAINING.md](CAT_PARALLEL_TRAINING.md) contains the
+generated 180/45-layout split, 2048-env GPU task and staged learner. Full training
+is awaiting operator clarification of a potentially live GPU G1 deployment.
+
 The user redirected implementation on 12 September: reproduce CAT's learning
 style, not extend the bespoke four-environment M2 residual pilot. **GRAIL stays
 the whole-body/terrain controller.** CAT's 12-leg-action policy is a pretrained
@@ -55,9 +59,11 @@ Actual flat CAT-to-GRAIL decoder updates, student-controlled simulation,
 teacher-assisted DAgger aggregation and exact save/resume now run. See
 [CAT_DISTILLATION.md](CAT_DISTILLATION.md) for the initial results and limitations.
 The first student has not passed unassisted obstacle traversal. Multi-scene
-parallel curriculum, full GRAIL terrain-task integration, retention rollouts
-and PPO are not connected. No renewed overnight run should be described as
-ready merely because supervised losses and checkpoint tests pass.
+parallel task/learner implementation now exists (link above); its integrated GPU
+optimizer smoke and full launch are pending deployment coordination. Full GRAIL
+terrain-task integration and retention rollouts remain later work. No renewed
+overnight run should be described as ready merely because supervised losses
+and checkpoint tests pass.
 The old M2 pilot is not this pipeline and its overnight command must not be used
 as a substitute. No custom-model training is left running after this change.
 

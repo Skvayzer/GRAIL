@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-09-12 — generated-clutter parallel task and staged learner
+
+- Replaced the single-scene pilot direction with 180 unique generated training
+  layouts and 45 disjoint held-out layouts, using unchanged pinned CAT random
+  occupancy/FMM generation. Fifteen empty low-obstacle recipes were rejected
+  explicitly. Lateral, low, overhead and mixed families are all represented.
+- Implemented independent GPU PhysX environments, per-episode field sampling,
+  native CAT reset/PD/noise/gait/odometry mechanics, 162D actor and 250D privileged
+  packets, and all 22 native reward terms. JAX-source arithmetic parity passes.
+- Physics benchmarks: 16/256/2048 envs at 49/668/4824 env-steps/s on the shared
+  GPU. The 2048-env check visited all 48 lateral layouts and reset 72 episodes.
+  These are teacher-driven physics checks, not trained-student successes.
+- Implemented family CAT-to-GRAIL transfer/PPO, whole-body specialist-to-generalist
+  KL DAgger, generalist PPO, held-out evaluation, W&B, compact checkpoints and
+  resume. Default budget is 226,492,416 transitions with 2048 envs and a 24h cap.
+  CPU tests through the actual decoder pass all three gradient paths and exact
+  learner resume; 249 CPU tests pass, 8 GPU tests were deliberately skipped.
+- Another user's G1 deployment/inference process was discovered on the same
+  GPU. Stopped only our pending integration smoke and requested operator
+  confirmation before sustained GPU load. Added launch/runtime detection.
+  **Full training has not started; GPU optimizer smoke remains pending.**
+  W&B identity is confirmed as skvayzer. Other users' jobs/robot state untouched.
+- Full scope, differences from native CAT, commands and evidence are in
+  CAT_PARALLEL_TRAINING.md. This still uses native CAT SDF-only clutter and G1
+  dynamics with the GRAIL decoder, not the original GRAIL terrain task or live
+  sensor/manipulation integration. No hardware command entry point was added.
+
 ## 2026-09-12 — second DAgger round and full-horizon failure checks
 
 - Added 1000 student-state labels including 500 from actual Isaac CPU PhysX.

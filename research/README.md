@@ -33,12 +33,17 @@ Large checkpoints/data are fetched by hash, never committed.
 
 Progress and actual test results are recorded in `PROGRESS.md`. Do not infer a
 completed milestone from the existence of a launcher or configuration.
+**Latest setup:** [CAT_PARALLEL_TRAINING.md](CAT_PARALLEL_TRAINING.md): 180 generated
+training layouts, 45 held-out, a tested 2048-environment GPU physics task and a
+specialist/DAgger/PPO learner. Sustained training is awaiting clarification of
+another user's potentially live G1 deployment on the same GPU; not yet launched.
 **Current learning direction:** [`CAT_STYLE.md`](CAT_STYLE.md) replaces the
 failed four-environment M2 overnight recipe with pretrained CAT teacher transfer
 and its specialist/generalist learning style. Live Isaac teacher-label collection,
 native body-frame parity and offline loss gradients through GRAIL now pass;
-actual flat distillation updates and DAgger now run, but multi-scene training
-and successful unassisted traversal remain pending. See
+actual flat distillation updates and DAgger now run. The new multi-scene setup
+is linked above; its sustained training and successful unassisted traversal
+remain pending. See
 [CAT_DISTILLATION.md](CAT_DISTILLATION.md) for the first learning results.
 The frozen CAT checkpoint has also now directly controlled Isaac in three
 native fixtures: [direct engine comparison](CAT_DIRECT_EVALUATION.md). Numerical
