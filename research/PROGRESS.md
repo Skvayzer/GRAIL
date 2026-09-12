@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-09-12 — memory guard stop; requested restart with 16,384 environments
+
+- The 16,768-env run subsequently reached 20.068 GiB process use / 0.959 GiB
+  device-free and stopped through the 1 GiB guard, not an OOM exception. Final
+  checkpoint: `checkpoint_000010612736.pt`, 10,612,736 transitions / 19,456
+  optimizer steps. SHA-256:
+  `2c197e1d34e27b4377d9ee9d0cbbfc70dbd11e2e2df861832f4634cd25ecdf4f`.
+  CPU checksum, finite-tensor and transition-accounting checks pass.
+- User requested slightly fewer environments. Started detached continuation
+  `20260912_cat_generated_full_16384_v1` at `fe56e5c`, PID 12057 at launch,
+  from that exact checkpoint. Reduced only environment count (384 fewer);
+  the generated bank, staged learning budget, 17 GiB Torch cap, 1 GiB free-memory
+  guard, deployment checks and 24h wall cap remain unchanged.
+- No GPU compute jobs were present at preflight; another user's earlier job
+  was no longer running without any intervention from us. No real-robot access
+  or actuation. A new GPU G1 deployment/inference process (PID 12452) then
+  appeared after preflight. Stopped only our initializing worker with SIGTERM
+  before any new update. `startup_interruption.json` records the interruption;
+  source checkpoint remains intact. Twelve targeted CPU tests pass.
+- The deployment process exited without our intervention. After verifying
+  the GPU was clear again, retried with unchanged safeguards in new run
+  `20260912_cat_generated_full_16384_v2`, PID 13018 at launch. No exemptions.
+- A second G1 GPU deployment (PID 14243 under the same user) appeared during
+  that retry. Sent SIGTERM only to our worker again. Stopped automatic retries:
+  these jobs reappear after clean checks, so sustained training needs operator
+  coordination. Their loopback/ZMQ arguments suggest simulation but do not
+  establish operator-confirmed hardware isolation. Training is not left running.
+
 ## 2026-09-12 — resized training running at 16,768 environments / 21.41 GB VRAM
 
 - The temporary G1 GPU deployment exited naturally. Verified no GPU robot

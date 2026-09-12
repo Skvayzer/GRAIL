@@ -2,32 +2,40 @@
 
 ## Current state — 12 September 2026
 
-**Running with 16,768 environments:**
-`research/runs/20260912_cat_generated_full_16768_v1`, launch revision `5bb3265`,
-worker PID 2825440 at launch.
-[Live W&B run](https://wandb.ai/skvayzer/grail-cat/runs/eartbpzz).
-Measured steady total process VRAM is **19.94 GiB (21.41 decimal GB)**, not
-20 GiB. This meets the user's 20 GB request while retaining about 1.08 GiB
-CUDA device-free at inspection. We did not allocate dummy buffers or shrink
-the 1 GiB free-memory stop reserve to force an exact 20 GiB reading.
-The PyTorch allocator cap is 17 GiB; simulator allocations are additional.
-Another user's 9,876 MiB compute job remains running and untouched.
+**Restart blocked by recurring GPU deployment jobs:** prepared 16,384
+environments, a reduction of 384 (2.29%) from the previous batch. Latest attempt:
+`research/runs/20260912_cat_generated_full_16384_v2`, launch revision `fe56e5c`,
+worker PID 13018 at launch, sent SIGTERM during startup.
 
-The temporary G1 deployment/inference process that paused resizing exited
-without our intervention. The restart preflight found no GPU robot deployment;
-the runtime deployment guard remains enabled, with no PID exemptions.
-This is shared GPU use, not a guarantee of isolation from other workloads.
+The first attempt (`20260912_cat_generated_full_16384_v1`, PID 12057) was stopped
+during initialization when a new GPU G1 deployment/inference process appeared
+after preflight. That process (PID 12452) exited without our intervention.
+Verified the GPU was clear and retried in the new `v2` directory, preserving
+the interrupted startup record and the original source checkpoint.
+Another G1 deployment then appeared under the same user (PID 14243), so the
+second startup was also stopped. These short-lived jobs can reappear after a
+clean preflight; do not repeatedly restart or exempt them without coordination
+with their operator. Their command line suggests loopback/ZMQ simulation, but
+hardware isolation has not been confirmed by the operator. Training is paused.
+The PyTorch allocator cap remains 17 GiB;
+simulator allocations are additional. The 1 GiB device-free stop reserve and
+runtime robot-deployment guard are unchanged, with no PID exemptions.
 
-The current run resumed `20260912_cat_generated_full_16640_v1/`
-`checkpoint_000006856704.pt`, preserving all progress from both earlier runs.
-At the verification snapshot it reached **9,539,584 cumulative transitions /
-18,944 optimizer steps**, in lateral PPO after completed lateral teacher transfer.
-Checkpoint `checkpoint_000009539584.pt` passed a CPU finite-tensor, SHA-256,
-counter, updated-PPO-parameter and frozen-provenance audit. W&B reports running.
-Twelve targeted CPU tests also pass. Recent throughput is roughly 11,200–12,100
-environment-steps/s after reset activity begins (first update: 17,201).
-Early PPO success is still zero; this is runtime/checkpoint evidence, **not
-successful learned navigation**. All activity is desktop simulation only.
+The previous 16,768-env run did not crash: its memory usage subsequently rose
+to 20.068 GiB, leaving 0.959 GiB device-free. It saved and stopped via the
+memory guard. Its final checkpoint is `20260912_cat_generated_full_16768_v1/`
+`checkpoint_000010612736.pt`: **10,612,736 cumulative transitions / 19,456
+optimizer steps**, in lateral PPO after completed lateral teacher transfer.
+That checkpoint passed CPU SHA-256, finite-tensor and transition-counter checks
+before the new launch. The restart continues those weights and optimizer state.
+No earlier production progress was discarded.
+
+At restart preflight the other compute job was no longer running and no GPU
+compute processes were reported; approximately 31 GiB was free. We did not stop
+any other user's process. Keep checking availability before future restarts;
+this is shared GPU use, not guaranteed isolation or exclusive reservation.
+All activity is desktop simulation only. Early success remained zero at the
+previous stop; runtime evidence is **not successful learned navigation**.
 
 Resize history: the user requested at least 20 GB of process GPU use.
 The 2,048-env run was stopped checkpointed at 4,194,304 transitions (completed
@@ -127,7 +135,7 @@ These are 64-step physics checks, **not learner-throughput or learned-policy
 success claims**. The 2048-env check exercised all 48 lateral geometries and 72
 completed/reset episodes. Another user's compute workload was already present;
 no process was killed to improve these numbers. The original batch size was
-2048; the current user-requested resize is 16,768.
+2048; the current user-requested restart uses 16,384.
 
 ## CAT learning style and explicit whole-body adaptations
 
@@ -234,21 +242,22 @@ tail -f research/runs/new_cat_full/worker.log
 # To stop, inspect process.json and send SIGTERM to that run's exact worker PID.
 ```
 
-To monitor the current resized run:
+To inspect the latest attempted resized run:
 
 ```bash
-tail -f research/runs/20260912_cat_generated_full_16768_v1/worker.log
-cat research/runs/20260912_cat_generated_full_16768_v1/status.json
+tail -f research/runs/20260912_cat_generated_full_16384_v2/worker.log
+cat research/runs/20260912_cat_generated_full_16384_v2/status.json
 ```
 
-Exact current launch (record only; **do not start a second copy**):
+Exact attempted launch (record only; coordinate GPU use and use a new run
+directory before retrying):
 
 ```bash
 .venv/bin/python research/cat_parallel_train.py \
-  research/runs/20260912_cat_generated_full_16768_v1 \
-  --num-envs 16768 --hours 24 --wandb-mode online \
+  research/runs/20260912_cat_generated_full_16384_v2 \
+  --num-envs 16384 --hours 24 --wandb-mode online \
   --torch-memory-limit-gib 17 --min-free-gpu-gib 1 \
-  --resume research/runs/20260912_cat_generated_full_16640_v1/checkpoint_000006856704.pt \
+  --resume research/runs/20260912_cat_generated_full_16768_v1/checkpoint_000010612736.pt \
   --accept-isaac-eula --detach
 ```
 
