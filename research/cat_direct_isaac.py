@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the frozen CAT policy directly in Isaac/PhysX; no GRAIL or hardware.
+"""Run native CAT or opt-in CAT/GRAIL student in Isaac/PhysX; no hardware.
 
 One CPU-physics robot, native 500Hz explicit PD / 50Hz policy. Original CAT
 player methods compute observations from a kinematic-only MuJoCo mirror.
@@ -59,6 +59,7 @@ def main():
     parser.add_argument("--distill-seed", type=int, default=6)
     parser.add_argument("--distill-collect", action="store_true", help="Save CAT labels on student-visited flat states")
     parser.add_argument("--distill-teacher-fraction", type=float, default=0.)
+    parser.add_argument("--distill-full-horizon", action="store_true", help="Continue after x exit to check student stability")
     args = parser.parse_args()
     if bool(args.distill_checkpoint) != bool(args.distill_run) or (args.distill_checkpoint and (args.render_replay or args.inspect_only)):
         parser.error("Student evaluation needs both dataset and checkpoint, no replay/inspection")
@@ -68,6 +69,8 @@ def main():
         parser.error("DAgger collection requires flat side1 training seeds 0..5, not held-out tests")
     if args.distill_teacher_fraction and not args.distill_collect:
         parser.error("Teacher assistance is for explicitly labelled DAgger collection only")
+    if args.distill_full_horizon and not args.distill_checkpoint:
+        parser.error("Full-horizon switch is for explicit student diagnostics")
     if not args.accept_isaac_eula or not 1 <= args.steps <= 2000:
         parser.error("Explicit EULA acceptance and 1..2000 steps required")
     args.run = args.run.resolve()
@@ -300,7 +303,7 @@ def run(args):
         rows.append(snapshot(player, player_state, action))
         if step % 100 == 0:
             print("DIRECT_CAT_STEP", step, player.mj_data.qpos[:3].tolist(), flush=True)
-        if rows[-1]["head"][2] < .7 or player.mj_data.qpos[0] >= 1.9:
+        if rows[-1]["head"][2] < .7 or (player.mj_data.qpos[0] >= 1.9 and not args.distill_full_horizon):
             break
     result = save_episode(args.run, args.scene, "isaac", rows, player, time.monotonic()-started,
         dict(policy="GRAIL frozen 29-joint decoder + CAT-trained motor-token adapter", grail_loaded=True)
@@ -314,6 +317,8 @@ def run(args):
             soft_clipped_target_fraction=student.clip_count/student.target_count,
             scope="native CAT dynamics in Isaac; not full GRAIL terrain task")
         result.update(teacher_fraction=args.distill_teacher_fraction, dagger_collection=args.distill_collect)
+        result.update(full_horizon=args.distill_full_horizon,
+            final_goal_distance_xy=float(np.linalg.norm(player.mj_data.qpos[:2]-[2., 0.])))
     if args.distill_collect:
         if not dagger_rows:
             raise ValueError("No admitted Isaac student-state teacher labels")

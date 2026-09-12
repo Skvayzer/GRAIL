@@ -64,6 +64,7 @@ def main():
     parser.add_argument("--seeds", type=int, nargs="+", default=[6, 7])
     parser.add_argument("--collect-dagger", action="store_true")
     parser.add_argument("--teacher-fraction", type=float, default=0.)
+    parser.add_argument("--full-horizon", action="store_true", help="Do not stop at x exit; check post-passage stability for up to 5s")
     args = parser.parse_args()
     if not 0 <= args.teacher_fraction <= 1 or (args.teacher_fraction and not args.collect_dagger):
         parser.error("Teacher assistance is only for explicitly labelled DAgger collection")
@@ -98,7 +99,7 @@ def main():
                 mujoco.mj_step(player.mj_model, player.mj_data)
             state = player.observe_after_physics(state, action)
             rows.append(snapshot(player, state, action))
-            if rows[-1]["head"][2] < .7 or player.mj_data.qpos[0] >= 1.9:
+            if rows[-1]["head"][2] < .7 or (player.mj_data.qpos[0] >= 1.9 and not args.full_horizon):
                 break
         result = save_episode(args.output, f"side1_seed{seed}", "grail", rows, player, time.monotonic()-start,
             dict(policy="GRAIL frozen 29-joint decoder + CAT-trained motor-token adapter", grail_loaded=True))
@@ -106,7 +107,9 @@ def main():
             checkpoint_sha256=student.checkpoint_hash, checkpoint_updates=student.step,
             applied_joint_count=29, soft_clipped_target_fraction=student.clip_count/student.target_count,
             native_mujoco_version=mujoco.__version__, scope="native CAT dynamics, not full GRAIL task environment")
-        result.update(teacher_fraction=args.teacher_fraction, dagger_collection=args.collect_dagger)
+        result.update(teacher_fraction=args.teacher_fraction, dagger_collection=args.collect_dagger,
+            full_horizon=args.full_horizon,
+            final_goal_distance_xy=float(np.linalg.norm(player.mj_data.qpos[:2]-[2., 0.])))
         (args.output/f"side1_seed{seed}_grail.json").write_text(json.dumps(result, indent=2)+"\n")
         results.append(result)
     (args.output/"evaluation.json").write_text(json.dumps(results, indent=2)+"\n")

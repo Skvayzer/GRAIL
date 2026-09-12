@@ -72,6 +72,26 @@ These boundary exceptions are counted in the expert manifest.
   Both unassisted held-out MuJoCo runs stayed upright for 5 s and made limited
   progress, but neither reached the exit. A 25%-assisted Isaac training rollout
   advanced to x=1.334 m but had 40 native clearance violations: not a success.
+- `20260912_cat_distill_dagger_v2`: appended 1000 more labels (500 MuJoCo,
+  500 Isaac, with 25% or no teacher assistance). Dataset now has 3739 rows;
+  the same 396 validation rows remain byte-identical. Continued to **2200
+  cumulative updates**, held-out leg MSE 0.003189 rad² and retention MSE
+  0.001038 rad². All three tested unassisted short rollouts (MuJoCo seeds 6/7,
+  Isaac seed 6) cross x=1.9, but miss the 0.2 m goal radius and violate clearance.
+  Extending beyond the exit reveals falls: MuJoCo at 1.88/2.36 s and Isaac at
+  2.40 s. **Not a navigation success; the newer checkpoint is not promoted.**
+
+The 1400-step checkpoint remains useful as a slower stability comparison; it
+also did not solve the task. None of these checkpoints is ready for deployment.
+Full-horizon checks use `--full-horizon` (MuJoCo) or
+`--distill-full-horizon` (Isaac) so an exit-plane crossing cannot hide an
+immediate fall. Native direct-CAT benchmark defaults remain unchanged.
+
+The training was bounded and is now stopped, with checkpoints and optimizer
+states retained. No unattended overnight run was launched. CPU training was
+used for this small learner; this is not a GPU-throughput benchmark or the
+planned 256/512/1024-environment parallel trainer. The other user's GPU workload
+was not stopped or changed.
 
 The first two preparation attempts failed before a dataset was saved (checkpoint
 key handling, then NumPy boolean JSON serialization); both were fixed and their
@@ -104,7 +124,7 @@ CONTEXT=research/runs/20260912T095135_246506Z_stair_p1_cat_audit
   --context "$CONTEXT" --support-boundary
 .venv/bin/python research/cat_distill.py train "$CAT_RUN" --updates 600
 .venv/bin/python research/cat_distill_evaluate.py "$CAT_RUN" \
-  "$CAT_RUN/training_0_600/step_600.pt" "$CAT_RUN/eval_600"
+  "$CAT_RUN/training_0_600/step_600.pt" "$CAT_RUN/eval_600" --full-horizon
 
 .venv/bin/python research/cat_distill_evaluate.py "$CAT_RUN" \
   "$CAT_RUN/training_0_600/step_600.pt" "$CAT_RUN/dagger" \
@@ -117,12 +137,19 @@ CONTEXT=research/runs/20260912T095135_246506Z_stair_p1_cat_audit
 .venv/bin/python research/cat_direct_isaac.py "$CAT_RUN/isaac_eval" \
   --scene side1 --steps 250 --distill-run "$CAT_RUN" \
   --distill-checkpoint "$CAT_RUN/training_0_600/step_600.pt" \
-  --distill-seed 6 --accept-isaac-eula
+  --distill-seed 6 --distill-full-horizon --accept-isaac-eula
 ```
 
 Use new output paths. Source checkpoints and datasets are immutable. Evaluation
 reports contain the exact student checkpoint hash and cumulative update count.
 No ROS/SDK/hardware entry point exists in these scripts.
+
+`cat_distill_report.py` verifies that validation data stayed unchanged and
+produces a paired leg-imitation/retention plot plus explicit full-horizon
+success checks. Current evidence: `research/runs/20260912_cat_distill_summary/`.
+The automated suite passes 252 tests, including actual saved GRAIL history
+layout, gradient/frozen-weight checks, resume, held-out leakage rejection,
+and rejection of early-exit, assisted, fallen or clearance-violating successes.
 
 ## Remaining gates
 

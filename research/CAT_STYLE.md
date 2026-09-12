@@ -197,9 +197,11 @@ action replay. The original evidence was not rewritten. New recordings export
 their own hashed resolved configuration. An intermediate config-export failure
 on a `PosixPath` was fixed and regression-tested before the successful repeat.
 
-Next: connect admitted flat-clutter collection to real whole-body distillation
-updates/checkpoints with GRAIL retention; then CAT specialist/generalist DAgger
-and PPO over varied scenes, followed by measured 256/512/1024-env scaling. The
+Update: real flat-clutter distillation updates/checkpoints with GRAIL retention
+and initial DAgger rounds now exist; see [CAT_DISTILLATION.md](CAT_DISTILLATION.md).
+Stable unassisted flat traversal remains unsolved. Broader specialist/generalist
+DAgger and PPO over varied scenes, followed by measured 256/512/1024-env scaling,
+are still pending. The
 one-env diagnostic recorder is not the parallel training implementation.
 
 Sources: the pinned local CAT source/checkpoint, and the authors' repository:

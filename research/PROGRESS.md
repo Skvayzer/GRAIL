@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-09-12 — second DAgger round and full-horizon failure checks
+
+- Added 1000 student-state labels including 500 from actual Isaac CPU PhysX.
+  The aggregate has 3739 rows, with all 396 held-out rows unchanged. Continued
+  the checked optimizer/RNG state to 2200 cumulative updates; final validation
+  leg/retention MSE is 0.003189/0.001038 rad². Frozen decoder/teacher unchanged.
+- Short unassisted tests now cross the x exit, but violate clearance and miss
+  the goal radius. Added opt-in post-exit full-horizon checks: both MuJoCo
+  validation starts and the Isaac seed-6 check fall after passing the exit.
+  No successful-navigation claim or promotion of the latest checkpoint.
+- Training is stopped after the bounded pilot. All checkpoints, failed tests
+  and earlier slower/stabler comparisons remain intact. 252 tests pass; next
+  work is stable full-horizon flat behavior, not harder stairs. No robot access,
+  no actuation, no changes to the other user's GPU job.
+
 ## 2026-09-12 — actual flat CAT-to-GRAIL updates and first DAgger round
 
 - Implemented a 337,856-parameter CAT-feature motor-token adapter through the
@@ -17,8 +32,8 @@
   but violated native clearance. Loss improvement is not called navigation
   success. Full details and reproduction commands are in CAT_DISTILLATION.md.
 - No robot access or actuation. CPU training and bounded CPU-physics simulations
-  leave the other user's GPU workload untouched. Further Isaac-labelled DAgger
-  and final unassisted checks are being recorded separately.
+  leave the other user's GPU workload untouched. The subsequent Isaac-labelled
+  DAgger and final unassisted checks are recorded in the entry above.
 
 ## 2026-09-12 — CAT directly controlling Isaac, paired with native MuJoCo
 
