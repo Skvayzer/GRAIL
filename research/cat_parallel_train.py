@@ -48,6 +48,12 @@ def resume_phase_progress(checkpoint,source_config,phase_names):
     return progress,budgets
 
 
+def interval_crossed(before,after,interval):
+    if not 0<=before<=after or interval<=0:
+        raise ValueError("Invalid transition interval")
+    return after//interval>before//interval
+
+
 def gpu_robot_deployments():
     """Read only: identify potentially timing-critical robot users of this GPU."""
     result=subprocess.run(["nvidia-smi","--query-compute-apps=pid","--format=csv,noheader,nounits"],
@@ -78,7 +84,7 @@ def main():
     p.add_argument("run",type=Path)
     p.add_argument("--bank",type=Path,default=ROOT/"runs/20260912_cat_generated_bank_v2")
     p.add_argument("--context",type=Path,default=ROOT/"runs/20260912T095135_246506Z_stair_p1_cat_audit")
-    p.add_argument("--num-envs",type=int,default=2048,help="16/64/128 or a multiple of 256 up to 32768")
+    p.add_argument("--num-envs",type=int,default=2048,help="16/64 or a multiple of 128 up to 32768")
     p.add_argument("--benchmark",action="store_true")
     p.add_argument("--benchmark-steps",type=int,default=128)
     p.add_argument("--smoke-updates",type=int,default=0)
@@ -101,8 +107,8 @@ def main():
         help="Only after operator confirms this exact GPU deployment PID is not controlling hardware")
     p.add_argument("--worker",action="store_true",help=argparse.SUPPRESS)
     a=p.parse_args()
-    if a.num_envs not in (16,64,128) and (not 256<=a.num_envs<=32768 or a.num_envs%256):
-        p.error("Environment count must be 16/64/128 or a multiple of 256 up to 32768")
+    if a.num_envs not in (16,64) and (not 128<=a.num_envs<=32768 or a.num_envs%128):
+        p.error("Environment count must be 16/64 or a multiple of 128 up to 32768")
     if not a.accept_isaac_eula or not 0<a.hours<=48 or a.smoke_updates<0 or not math.isfinite(a.torch_memory_limit_gib) or a.torch_memory_limit_gib<=0:
         p.error("Explicit EULA acceptance and bounded runtime required")
     if not math.isfinite(a.min_free_gpu_gib) or not 1.<=a.min_free_gpu_gib<=16.:
@@ -269,6 +275,7 @@ def train(a):
     config=dict(schema="cat-generated-whole-body-training-v1",args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},
         phase_budget_transitions=phase_budgets,initial_phase_transitions=list(phase_progress),
         budget_semantics="Preserve transitions on resize; last complete vector rollout can overshoot each stage by less than one batch",
+        checkpoint_interval_transitions=1638400,evaluation_interval_transitions=16384000,
         resume_checkpoint_sha256=sha(a.resume) if a.resume else None,
         source_git_revision=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
         source_files_sha256={name:sha(ROOT/name) for name in ("cat_parallel_train.py","cat_parallel_env.py",
@@ -437,6 +444,11 @@ def train(a):
             total_steps+=count
             phase_progress[phase_id]+=count
             phase_complete=phase_progress[phase_id]>=phase_budgets[phase_id]
+            # Preserve data-based cadence rather than making checkpoints/evals
+            # eight times less frequent when the vector batch grows eightfold.
+            before=phase_progress[phase_id]-count
+            checkpoint_due=interval_crossed(before,phase_progress[phase_id],1638400)
+            evaluation_due=interval_crossed(before,phase_progress[phase_id],16384000)
             average=torch.stack(statistics).mean(0).tolist()
             episodes=env.completed;env.completed=[]
             metrics=dict(total_steps=total_steps,optimizer_updates=total_updates,phase=phase_id,family=family,kind=kind,
@@ -468,11 +480,11 @@ def train(a):
             if metrics["cuda_free_gb"]<a.min_free_gpu_gib:
                 print("GPU headroom below configured reserve: saving and stopping",flush=True)
                 stop_requested=True
-            if not stop_requested and not a.smoke_updates and ((update+1)%250==0 or phase_complete):
+            if not stop_requested and not a.smoke_updates and (evaluation_due or phase_complete):
                 save(phase_id,update+1)
                 (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="evaluating",robot_actuation=False))+"\n")
                 obs=evaluate(policy,family)
-            if update%25==0 or phase_complete or stop_requested or time.monotonic()-started>a.hours*3600:
+            if update==first_update or checkpoint_due or phase_complete or stop_requested or time.monotonic()-started>a.hours*3600:
                 if policy.student.frozen_hash()!=frozen:
                     raise ValueError("Frozen decoder or teacher modified")
                 save(phase_id,update+1)

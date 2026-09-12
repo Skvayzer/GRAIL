@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-09-12 — 16,640-env continuation verified; new deployment blocks final resize
+
+- Run `20260912_cat_generated_full_16640_v1` restored the original weights,
+  optimizer and completed transfer budget, then performed five real PPO updates.
+  Latest saved cumulative progress: 6,856,704 transitions / 17,664 optimizer
+  steps. Peak measured NVIDIA process use: 19.895 GiB, about 1.2 GiB CUDA-free.
+  Checkpoint: `checkpoint_000006856704.pt`; W&B run `k0db7rad`.
+- Requested a graceful stop for one further 128-env sizing adjustment to
+  16,768; all new progress was preserved. A separate G1 deployment/inference
+  process then appeared on the GPU (PID 2823322 at inspection, about 1.46 GiB).
+  Final restart has not been performed without renewed deployment coordination
+  and sufficient memory headroom. No other user's process was stopped/changed.
+- Added finer 128-env increments and preserved checkpoint/evaluation cadence
+  in transitions when batch size changes. The 1 GiB free-memory stop threshold
+  was not relaxed. Twelve targeted CPU tests pass.
+
 ## 2026-09-12 — resizing to the user's 20 GB VRAM target
 
 - Stopped only our original worker gracefully at 4,194,304 transitions; lateral

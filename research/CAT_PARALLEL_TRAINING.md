@@ -2,18 +2,30 @@
 
 ## Current state — 12 September 2026
 
-**Resize in progress:** the user requested at least 20 GB of process GPU use.
+**Final resize restart paused:** a new GPU G1 deployment/inference process
+appeared under another user during sizing (PID 2823322 at inspection, 1.46 GiB).
+Do not override deployment coordination or consume the memory needed by that job.
+Our latest continuation is stopped checkpointed at **6,856,704 transitions**:
+`research/runs/20260912_cat_generated_full_16640_v1/checkpoint_000006856704.pt`.
+[W&B record](https://wandb.ai/skvayzer/grail-cat/runs/k0db7rad).
+It ran five PPO updates at 16,640 environments and measured 19.895 GiB total
+process VRAM. The prepared next candidate is 16,768 environments to cross 20 GiB
+without dummy allocations. It has not been launched while the new job is active.
+The 1 GiB device-free stop reserve remains unchanged.
+
+Resize history: the user requested at least 20 GB of process GPU use.
 The 2,048-env run was stopped checkpointed at 4,194,304 transitions (completed
 lateral teacher transfer). Its checkpoint is retained; it is no longer running.
 The 16,384-env capacity test passed all four optimizer phases at 17,176 env-steps/s,
 with 12.79 GiB Torch-reserved and 1.27 GiB minimum device-free memory (about
-19.8 GiB total process VRAM). A 16,640-env continuation is the next measured
-candidate; it resumes the original learner/optimizers, not the capacity-test weights.
+19.8 GiB total process VRAM). The 16,640-env continuation resumed the original
+learner/optimizers, not the capacity-test weights, and preserved its new progress.
 
 Resizing preserves per-stage transition counters and budgets, rather than
 interpreting the old 2,048-env rollout index at the new vector size. A last full
 rollout can overshoot a stage's target by less than one vector batch. Counters,
 checkpoint hash and parent run are recorded. Physics episodes restart fresh.
+Checkpoint/evaluation cadence is also transition-based after resizing.
 
 The following documents the original 2,048-env launch and its evidence:
 

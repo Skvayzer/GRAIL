@@ -3,10 +3,16 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from cat_parallel_train import resume_phase_progress
+from cat_parallel_train import resume_phase_progress,interval_crossed
 
 
 class ResizeTests(unittest.TestCase):
+    def test_checkpoint_cadence_tracks_transitions_not_old_batch_count(self):
+        self.assertFalse(interval_crossed(0,536576,1638400))
+        self.assertTrue(interval_crossed(1597440,2134016,1638400))
+        self.assertFalse(interval_crossed(2134016,2670592,1638400))
+        self.assertTrue(interval_crossed(16000000,16536576,16384000))
+
     def config(self):
         return dict(args=dict(num_envs=2048),native_recipe=dict(policy_config=dict(unroll_length=32)),
                     phases=[("lateral","transfer",64),("lateral","ppo",256)])
