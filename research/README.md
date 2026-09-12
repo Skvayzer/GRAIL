@@ -38,6 +38,10 @@ failed four-environment M2 overnight recipe with pretrained CAT teacher transfer
 and its specialist/generalist learning style. Live Isaac teacher-label collection,
 native body-frame parity and offline loss gradients through GRAIL now pass;
 actual distillation updates/multi-scene training are not connected yet.
+The frozen CAT checkpoint has also now directly controlled Isaac in three
+native fixtures: [direct engine comparison](CAT_DIRECT_EVALUATION.md). Numerical
+transfer checks pass, but one overhead clearance violation remains; this is
+not a full avoidance-transfer or whole-body safety pass.
 Old M2 commands below are historical,
 not the next recommended training launch.
 The verified four-sample baseline and two-update training smoke results are in

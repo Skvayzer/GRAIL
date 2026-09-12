@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-09-12 — CAT directly controlling Isaac, paired with native MuJoCo
+
+- Added a bounded simulation-only runner using unchanged released CAT weights,
+  original native-player observations/history and explicit 500 Hz torque PD.
+  CAT controls the 12 legs; remaining native joints retain nominal PD targets.
+  No GRAIL actor, optimizer, robot commands or host robot changes.
+- Recorded actual closed-loop `side1`, `hurdle1`, `crouch1` episodes in MuJoCo
+  and Isaac. All six stay upright and finish within 0.2 m of the native XY goal.
+  Native SDF/height acceptance passes lateral/low Isaac tests, but overhead has
+  one sample at -0.040348 m against -0.04 m cutoff. A fresh overhead repeat is
+  byte-identical. This remains a partial pass, not certified transfer.
+- Original composed mesh vertices agree within 5.73e-8 m; sampled field values
+  within 2.50e-6; imported initial FK within 7.19e-7 m. Body masses, COMs, joint
+  limits and inertias agree numerically. Fixed only the inertia audit's initial
+  mistaken double rotation (PhysX tensor values are already in link axes).
+- ONNX parity on all 1587 saved observation vectors passes with maximum action
+  error 6.26e-7. Added native post-step and inertia-frame regression tests.
+- Restored native explicit contact pairs omitted by the MJCF importer, while
+  preserving original SDF-only robot/clutter semantics. This does not certify
+  physical full-body collision avoidance or the full random/stair distribution.
+- All 241 automated tests pass (26.7 s). Saved hashed episodes, plot, and
+  common-renderer trajectory comparison videos for all three scenes;
+  reproducible commands and caveats are in CAT_DIRECT_EVALUATION.md. Isaac worker
+  teardown is bounded to its own process group. Other GPU work was untouched.
+
 ## 2026-09-12 — live CAT teacher labels and real GRAIL decoder gradient replay
 
 - Connected the verified native CAT observation/action bridge to live Isaac

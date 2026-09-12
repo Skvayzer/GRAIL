@@ -5,6 +5,12 @@ style, not extend the bespoke four-environment M2 residual pilot. **GRAIL stays
 the whole-body/terrain controller.** CAT's 12-leg-action policy is a pretrained
 avoidance teacher, not a replacement whole-body controller.
 
+**Direct checkpoint check:** CAT has now controlled Isaac in three original
+flat fixtures, compared against MuJoCo. Geometry/field/model checks pass and all
+runs remain upright, but overhead clearance fails one native threshold sample.
+See [CAT_DIRECT_EVALUATION.md](CAT_DIRECT_EVALUATION.md) for actual results,
+videos, reproduction commands and the limits of this partial pass.
+
 ## Implemented in this change
 
 - Download the authors' original trainable generalist actor/value/normalizer
