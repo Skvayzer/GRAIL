@@ -27,6 +27,9 @@
   these jobs reappear after clean checks, so sustained training needs operator
   coordination. Their loopback/ZMQ arguments suggest simulation but do not
   establish operator-confirmed hardware isolation. Training is not left running.
+  The second startup did not finish exiting after SIGTERM; after roughly one
+  minute without any TRAIN update, force-stopped that exact worker PID only.
+  Its source checkpoint is unchanged. Other users' processes were not signalled.
 
 ## 2026-09-12 — resized training running at 16,768 environments / 21.41 GB VRAM
 
