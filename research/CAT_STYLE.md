@@ -36,15 +36,19 @@ avoidance teacher, not a replacement whole-body controller.
 Use CAT's actual HumanoidPF observations, collision/clearance rewards and episode
 reset behavior for the avoidance teacher. Do not silently feed our unrelated
 oracle packet to its 162D input. Whole-body adaptation must map teacher outputs
-by joint name and account for the native `default_pos + 0.5 * action` convention.
+by joint name and account for the native **incremental** convention:
+`clip(previous_motor_target + 0.5 * action, soft_joint_limits)`.
+The earlier description as offsets from default pose was incorrect; defaults
+initialize/reset target history, they are not added at every step.
 The teacher supplies no wrist/arm targets. Those remain a GRAIL/whole-body task;
 zero-padding twelve actions is not a whole-body pretrained policy.
 
 ## What remains (not claimed implemented)
 
-The CAT-to-Isaac observation/action bridge, same-state teacher labels, actual
-whole-body distillation and multi-scene curriculum trainer are **not connected
-yet**. No renewed overnight run should be described as ready until that path
+The named-articulation observation/action bridge and same-state label primitives
+are implemented and CPU-verified (below). They are **not yet wired into live
+Isaac rollouts**. Actual whole-body distillation and the multi-scene curriculum
+trainer are not connected. No renewed overnight run should be described as ready until that path
 has a real rollout/update/checkpoint test and comparison with its teachers.
 The old M2 pilot is not this pipeline and its overnight command must not be used
 as a substitute. No custom-model training is left running after this change.
@@ -71,10 +75,52 @@ From `~/robotics/GRAIL-CAT`:
 ```
 
 The export refuses to overwrite an existing output; the verified export is in
-`research/artifacts/cat_teacher_v1/`. Large artifacts remain outside git.
+`research/artifacts/cat_teacher_v2/` (same weights as v1, corrected action
+description). Large artifacts remain outside git.
 Try 256, 512, 1024 environments in measured single-GPU benchmarks, **not** the
 authors' multi-GPU 65,536-environment generalist configuration blindly. At this
 change another user's workload occupies the GPU; it was not stopped or modified.
+
+## Teacher bridge milestone — 12 September
+
+`cat_bridge.py` implements the original 162D packing, 23 named observed joints,
+11 body sites, yaw-only field coordinates, previous-action/target history, and
+soft-limit-clipped incremental leg targets. Site offsets/defaults/limits are
+exported from CAT's loaded MJCF rather than guessing them from our URDF.
+
+The released teacher uses CAT's legacy X/Z interpolation-weight ordering and
+edge clamping. Its compatibility sampler is explicit and separate from our
+corrected geometry/safety queries; out-of-grid queries are counted, not treated
+as observed free space. The actor gets group-major GF/BF/distance features,
+not a per-point-interleaved 77D vector.
+
+Verification command (CPU, no hardware commands):
+
+```bash
+../Click-and-Traverse/.venv/bin/python research/check_cat_bridge.py --steps 100
+```
+
+Passed on 300 moving MuJoCo states across `side1`, `hurdle1`, `crouch1`:
+maximum observation error `2.39e-7`, actor error `8.65e-7`, target error
+`3.73e-7` radians. Names were reordered to test MuJoCo/PhysX indexing independence.
+The original native training `_get_obs` also passes with noise disabled and
+deliberately different current/delayed fields and commands. Only the native
+ONNX actor drives the CPU simulation; the port labels exactly those states.
+This checks arithmetic/packing, not successful complete obstacle traversal.
+
+Report, model contract and labelled samples:
+`research/runs/20260912T093526_836048Z_cat_bridge/`.
+230 automated tests pass, including batch-512 packing and leg-only imitation
+gradients. The latter is a unit test, **not GRAIL training**.
+
+Next implementation is the live Isaac teacher-label collector: verify equivalent
+named link frames, provide CAT command/gait/delay state, record the **actually
+applied GRAIL targets**, and pair teacher leg labels with the GRAIL observations.
+`AppliedTargetHistory` never advances from unexecuted teacher predictions.
+`teacher_leg_loss` supervises decoded **absolute leg targets in radians** only;
+arms/waist receive no fabricated CAT labels. Then connect this to whole-body
+distillation with GRAIL retention, before flat specialist/generalist curriculum
+and throughput benchmarks. No new overnight training was launched in this step.
 
 Sources: the pinned local CAT source/checkpoint, and the authors' repository:
 https://github.com/GalaxyGeneralRobotics/Click-and-Traverse

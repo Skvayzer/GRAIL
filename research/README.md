@@ -33,6 +33,11 @@ Large checkpoints/data are fetched by hash, never committed.
 
 Progress and actual test results are recorded in `PROGRESS.md`. Do not infer a
 completed milestone from the existence of a launcher or configuration.
+**Current learning direction:** [`CAT_STYLE.md`](CAT_STYLE.md) replaces the
+failed four-environment M2 overnight recipe with pretrained CAT teacher transfer
+and its specialist/generalist learning style. The teacher bridge has CPU parity;
+live Isaac distillation is not yet connected. Old M2 commands below are historical,
+not the next recommended training launch.
 The verified four-sample baseline and two-update training smoke results are in
 [`M0_RESULTS.md`](M0_RESULTS.md). The integrated M2 residual trainer, verified
 update/resume path and overnight commands are in [`M2_TRAINING.md`](M2_TRAINING.md).

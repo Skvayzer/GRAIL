@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--release", type=Path, default=ROOT/"artifacts/cat_release")
-    p.add_argument("--output", type=Path, default=ROOT/"artifacts/cat_teacher_v1")
+    p.add_argument("--output", type=Path, default=ROOT/"artifacts/cat_teacher_v2")
     args = p.parse_args()
     os.environ["JAX_PLATFORMS"] = "cpu"
     os.environ.setdefault("OMP_NUM_THREADS", "2")
@@ -56,7 +56,7 @@ def main():
         revision=manifest["revision"], checkpoint_manifest_sha256=hashlib.sha256((args.release/"manifest.json").read_bytes()).hexdigest(),
         weights_sha256=hashlib.sha256(weights.read_bytes()).hexdigest(),
         input="original CAT Bx162 observations; not GRAIL observations", action_joint_order=JOINTS,
-        action="normalized 12 leg targets; native conversion is default_pos + 0.5 * action",
+        action="12 normalized leg increments; clip(previous_target + 0.5 * action, soft limits)",
         native_framework="Brax/JAX", target_framework="PyTorch", device="cpu", samples=len(observations),
         maximum_action_error=error, arithmetic_parity_passed=True,
         robot_rollout_validated=False, grail_observation_bridge_implemented=False,

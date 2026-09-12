@@ -1,7 +1,7 @@
 """Released CAT generalist actor for cross-framework distillation.
 
 Input is the ORIGINAL CAT 162D observation, not a GRAIL/oracle observation.
-Output is 12 normalized leg targets in CAT joint order, NOT 29 joint commands
+Output is 12 normalized leg TARGET INCREMENTS in CAT joint order, NOT 29 joint commands
 or GRAIL latents. This module never writes robot/simulator actions. Keep frozen.
 Architecture/weights are copied from the released Flax MLP, not learned anew.
 """

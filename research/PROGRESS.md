@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-09-12 — native CAT observation/action bridge and same-state labels
+
+- Added batched PyTorch bridge for CAT's original 162D observation, named G1
+  joints/body-site offsets, heading-frame fields and incremental leg targets.
+  Corrected the prior documentation: CAT integrates from the PREVIOUS target,
+  not the default pose. The actor weights were correct and remain unchanged.
+- Exported v2 teacher metadata with that corrected description; weight SHA256
+  remains `4fd7022efb45478e9805b154ffb07599ba0ec365913b5921efb99a3e73159440`.
+  Old artifacts retained. Explicit legacy CAT sampling is isolated from the
+  corrected geometry queries, with out-of-domain samples counted separately.
+- CPU MuJoCo parity on 300 moving states in lateral/low/overhead scenes passes.
+  Maximum observation/action/target errors: 2.3842e-7 / 8.6427e-7 / 3.7253e-7.
+  Native training observation source also checked with noise disabled and
+  distinct delayed/current inputs. Refreshed MuJoCo kinematics before comparing
+  both packets so stale post-integration sensor data does not mix timestamps.
+- Result: `research/runs/20260912T093526_836048Z_cat_bridge/report.json`, with
+  exported site/limit contract and hashed same-state label archive. The named
+  articulation input uses Isaac-style tensors reconstructed from MuJoCo; this
+  is **not a live Isaac transfer validation**. Zero native failure resets in
+  these short samples is not evidence of complete obstacle traversal success.
+- Added applied-student-target history with per-environment reset and leg-only
+  imitation loss. Gradient tests update no arm/waist targets and never update
+  the teacher. 230 automated tests pass. No GRAIL optimizer steps, full randomized
+  MDP port, or whole-body distillation claimed. Live Isaac collector is next.
+- No real robot access/actuation. No new heavy GPU run was started while the
+  other user's training workload was active; no other job was stopped/changed.
+
 ## 2026-09-12 — failed-night diagnosis and CAT-style redirection
 
 - Overnight `20260911T220756_837720Z_m2_train` failed at 135 iterations /
