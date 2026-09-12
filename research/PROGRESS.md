@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-09-12 — generated training layout videos
+
+- Created four 12-second 720p MP4s: lateral, low, overhead and mixed. Each uses
+  three fixed cached training seeds (difficulty 0.4/0.6/0.8), with a rotating 3D
+  mesh and exact occupied top/side projections. Includes twelve PNG stills and
+  source/scene/video checksum manifest on Desktop, `CAT_training_layouts_20260912`.
+- CPU rendering only; no simulator, GPU encoder, robot or training process
+  started/changed. These are explicitly geometry previews, not policy rollouts
+  or evidence of successful navigation. Native floating SDF volumes preserved.
+- Every frame of all four movies decoded successfully (240 frames each), and
+  selected-scene/checksum plus existing video/mesh tests pass (8 tests).
+  Reproduction and laptop transfer: `CAT_TRAINING_LAYOUT_VIDEOS.md`.
+
 ## 2026-09-12 — generated-clutter parallel task and staged learner
 
 - Replaced the single-scene pilot direction with 180 unique generated training

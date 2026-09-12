@@ -16,6 +16,10 @@ GPU isolation. Reserve the GPU appropriately when operating physical robots.
 
 ## Actual generated distribution
 
+Short CPU-rendered examples and reproduction/transfer commands are in
+[CAT_TRAINING_LAYOUT_VIDEOS.md](CAT_TRAINING_LAYOUT_VIDEOS.md). They show actual
+cached training layouts, not trained-policy rollouts.
+
 `cat_parallel_bank.py` calls the unchanged pinned CAT random obstacle generator
 and progressive potential-field generator. It does not repeat `side1`.
 
