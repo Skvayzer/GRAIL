@@ -1,5 +1,44 @@
 # Progress
 
+## 2026-09-12 — live CAT teacher labels and real GRAIL decoder gradient replay
+
+- Connected the verified native CAT observation/action bridge to live Isaac
+  evaluation. Original GRAIL observations/actions/rewards/terminations stay
+  unchanged; CAT only labels states. Actual processed joint targets are checked
+  against Isaac actuator targets and captured before automatic reset. Offline
+  pairing checks catch shifted history and post-reset target substitution.
+- Ported CAT command projection, gait/stop update and five-step odometry delay;
+  native-source CPU command/gait parity passes (maximum 5.96e-8 / zero error).
+  Deterministic 1.4Hz, 0.07m foot-lift, noise-free teacher queries are not the
+  full randomized CAT MDP. Added cached/vectorized legacy-field sampling with
+  independent reference parity and explicit domain masks.
+- Full diagnostic run `20260912T094136_943795Z_stair_p1_cat_audit`: 499 live
+  frames / 498 executed-history pairs; frozen actor/teacher hashes unchanged,
+  independent CPU CAT action replay error 1.58e-6. Native CAT MJCF forward
+  kinematics at saved Isaac root/joints matches all eleven sites within
+  9.36e-7m. This validates link-frame conventions, not learned avoidance.
+- Short repeat `20260912T095135_246506Z_stair_p1_cat_audit`: 64 frames / 63
+  history pairs, saved resolved GRAIL configuration, successful independent
+  audit and native kinematic parity. An intermediate config serialization
+  failure on PosixPath happened before rollout; fixed with a narrow serializer
+  and regression test. Failed evidence retained, no checkpoint replaced.
+- Reconstructed the actual frozen GRAIL policy on CPU and replayed eight
+  in-domain states from the full run: maximum action error 1.08e-6. CAT absolute
+  leg-target MSE yields finite, nonzero gradients through its frozen decoder to
+  the 64D post-quantization input. No optimizer steps or parameter changes.
+  The early full packet lacks resolved config, so replay explicitly borrows
+  the short run's hash-checked config with matching actor hash/joint order/
+  clipping; it loads the full run's own checkpoint and does not rewrite data.
+- Both packets remain `training_admitted=false`: only 59/499 full-run frames
+  have all sites in CAT's native field bounds, and none in the short prefix.
+  Original clutter-only fields do not encode stair traversability. No guard
+  was relaxed to call these a training dataset. Flat specialist distillation,
+  GRAIL retention, generalist DAgger and PPO remain the next implementation.
+- 239 automated tests pass; commands/limitations are in CAT_STYLE.md. Only
+  small diagnostic simulations ran on the shared GPU; the other user's
+  existing GPU job was not stopped or modified. No simulation/training job
+  from this milestone remains running, and no robot was accessed or actuated.
+
 ## 2026-09-12 — native CAT observation/action bridge and same-state labels
 
 - Added batched PyTorch bridge for CAT's original 162D observation, named G1

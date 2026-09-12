@@ -5,8 +5,8 @@ import unittest
 
 import torch
 
-from gear_sonic.research.cat_bridge import (AppliedTargetHistory, CatObservationBridge,
-    GROUP_SIZES, JOINTS, OBS_JOINTS, SITES, normalize_fields, teacher_leg_loss)
+from gear_sonic.research.cat_bridge import (AppliedTargetHistory, CatFieldSampler, CatObservationBridge,
+    GROUP_SIZES, JOINTS, OBS_JOINTS, SITES, normalize_fields, sample_teacher_fields, teacher_leg_loss)
 
 ALL_JOINTS = OBS_JOINTS + tuple(f"{side}_wrist_{axis}_joint" for side in ("left", "right")
                               for axis in ("roll", "pitch", "yaw"))
@@ -31,6 +31,18 @@ def inputs(names=ALL_JOINTS, b=2):
 
 
 class BridgeTests(unittest.TestCase):
+    def test_vectorized_field_matches_legacy_at_edges_and_outside(self):
+        rng = torch.Generator().manual_seed(9)
+        fields = dict(gf=torch.rand(5, 6, 7, 3, generator=rng),
+                      bf=torch.rand(5, 6, 7, 3, generator=rng), sdf=torch.rand(5, 6, 7, generator=rng))
+        origin, dx = [-.5, -1., 0.], .04
+        pts = torch.rand(32, 11, 3, generator=rng)*.5 + torch.tensor(origin)-.1
+        pts[0, :4] = torch.tensor(origin)+torch.tensor([[0., 0., 0.], [4., 5., 6.], [4.1, 5., 6.], [3.4, 4.7, 5.8]])*dx
+        expected = sample_teacher_fields(fields, pts, origin, dx)
+        actual = CatFieldSampler(fields, origin, dx).sample(pts)
+        for key in expected:
+            torch.testing.assert_close(actual[key], expected[key], atol=2e-6, rtol=1e-5)
+
     def test_packet_exact_group_layout_and_default_subtraction(self):
         x = inputs()
         packet = CatObservationBridge(contract(), ALL_JOINTS).pack(**x)

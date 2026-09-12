@@ -41,6 +41,22 @@ class ArtifactTests(unittest.TestCase):
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_cat_teacher_is_exclusive_bounded_evaluation(self):
+        options = dict(num_envs=1, cat_scene=Path("/cat"), layout_audit=True,
+                       cat_teacher_contract=Path("/contract.json"),
+                       cat_teacher_weights=Path("/teacher"), cat_teacher_steps=64)
+        command = evaluation_command(Path("/run"), Path("/data"), "fixture", **options)
+        self.assertIn('++research_cat_teacher_output="/run/cat_teacher_shadow.json"', command)
+        self.assertIn("++max_render_steps=65", command)
+        self.assertIn("++run_once=true", command)
+        self.assertNotIn("train_agent", " ".join(command))
+        for change in (dict(cat_teacher_steps=0), dict(cat_teacher_steps=501),
+                       dict(num_envs=2), dict(gui=True), dict(cat_teacher_weights=None),
+                       dict(residual_preflight=True), dict(contact_audit=True),
+                       dict(observation_shadow=True), dict(layout_audit=False)):
+            with self.assertRaises(ValueError):
+                evaluation_command(Path("/run"), Path("/data"), "fixture", **{**options, **change})
+
     def test_residual_preflight_is_explicit_headless_no_update_and_bounded(self):
         from hydra.core.override_parser.overrides_parser import OverridesParser
         for count in (1, 4):

@@ -66,7 +66,8 @@ def scene_overrides(run, data, stem, num_envs):
 
 def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False,
                        cat_scene=None, cat_translation=(0., 0., 0.), cat_yaw=0., layout_audit=False, contact_audit=False,
-                       observation_shadow=False, record_video=False, residual_preflight=False, avoidance_task=False):
+                       observation_shadow=False, record_video=False, residual_preflight=False, avoidance_task=False,
+                       cat_teacher_contract=None, cat_teacher_weights=None, cat_teacher_steps=128):
     if avoidance_task and not residual_preflight:
         raise ValueError("Avoidance profile currently requires the no-update residual preflight")
     if residual_preflight and (not layout_audit or cat_scene is None or gui or record_video
@@ -111,6 +112,15 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
         if not layout_audit or gui:
             raise ValueError("Observation shadow requires headless single-environment layout audit")
         overrides["research_observation_shadow_output"] = str(run / "observation_shadow.json")
+    if cat_teacher_contract is not None:
+        if (not layout_audit or gui or num_envs != 1 or residual_preflight or contact_audit or observation_shadow):
+            raise ValueError("CAT teacher shadow needs exclusive one-env headless layout audit")
+        if cat_teacher_weights is None or not 1 <= cat_teacher_steps <= 500:
+            raise ValueError("CAT teacher shadow needs weights and 1..500 collection steps")
+        overrides.update(research_cat_teacher_output=str(run/"cat_teacher_shadow.json"),
+                         research_cat_teacher_contract=str(cat_teacher_contract),
+                         research_cat_teacher_weights=str(cat_teacher_weights),
+                         max_render_steps=cat_teacher_steps+1)
     if record_video:
         if gui or num_envs != 1:
             raise ValueError("Recorded evaluation requires one headless environment")
@@ -162,6 +172,12 @@ def main():
                         help="Record articulated contacts every physics step before reset; requires headless layout audit")
     parser.add_argument("--observation-shadow", action="store_true",
                         help="Record oracle obstacle packets and zero-residual frozen-clone parity; NEVER apply adapter actions")
+    parser.add_argument("--cat-teacher-contract", type=Path,
+                        help="Record CAT teacher labels alongside unchanged GRAIL actions; use exported contract.json")
+    parser.add_argument("--cat-teacher-weights", type=Path, default=ROOT/"artifacts/cat_teacher_v2",
+                        help="Frozen CAT teacher export directory, only used with --cat-teacher-contract")
+    parser.add_argument("--cat-teacher-steps", type=int, choices=range(1, 501), default=128,
+                        help="Bounded shadow collection length; does not claim completed traversal")
     parser.add_argument("--residual-preflight", action="store_true",
                         help="Zero-update learner state/timeout/reset audit, 1..4 headless environments; original actions only")
     parser.add_argument("--avoidance-task", action="store_true",
@@ -191,6 +207,12 @@ def main():
         parser.error("--contact-audit requires --layout-audit, no GUI or training")
     if args.observation_shadow and (not args.layout_audit or args.gui or args.training_smoke):
         parser.error("--observation-shadow requires --layout-audit, no GUI or training")
+    if args.cat_teacher_contract:
+        if (not args.layout_audit or args.gui or args.training_smoke or args.num_envs != 1
+                or args.residual_preflight or args.contact_audit or args.observation_shadow):
+            parser.error("CAT teacher shadow needs exclusive one-env headless layout audit, no training")
+        args.cat_teacher_contract = args.cat_teacher_contract.resolve(strict=True)
+        args.cat_teacher_weights = args.cat_teacher_weights.resolve(strict=True)
     if args.cat_scene:
         if args.training_smoke or args.clutter_audit or args.num_envs > 4:
             parser.error("CAT integration supports at most four environments; no training or primitive audit")
@@ -237,7 +259,9 @@ def main():
                                      cat_translation=args.cat_translation, cat_yaw=args.cat_yaw,
                                      layout_audit=args.layout_audit, contact_audit=args.contact_audit,
                                      observation_shadow=args.observation_shadow, record_video=args.record_video,
-                                     residual_preflight=args.residual_preflight, avoidance_task=args.avoidance_task)
+                                     residual_preflight=args.residual_preflight, avoidance_task=args.avoidance_task,
+                                     cat_teacher_contract=args.cat_teacher_contract, cat_teacher_weights=args.cat_teacher_weights,
+                                     cat_teacher_steps=args.cat_teacher_steps)
     record = {"simulation_only": True, "family": args.family, "num_envs": args.num_envs,
               "kind": kind, "avoidance_task": args.avoidance_task,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -323,6 +347,15 @@ def main():
                     from observation_results import audit_observation_shadow
                     record["observation_shadow_audit"] = audit_observation_shadow(run)
                     outputs_valid = outputs_valid and record["observation_shadow_audit"]["passed"]
+                if args.cat_teacher_contract:
+                    from cat_teacher_results import audit_teacher_shadow
+                    record["cat_teacher_shadow_audit"] = audit_teacher_shadow(run, args.cat_teacher_weights)
+                    # A bounded prefix is sufficient for pairing, not an episode
+                    # success claim. Keep the physical layout/preflight checks.
+                    outputs_valid = (report["valid_diagnostic_run"] and report["preflight_accepted"]
+                        and record.get("layout_audit_passed", False) and finite_nested(report)
+                        and record["cat_teacher_shadow_audit"]["passed"])
+                    record["note"] = "Bounded unchanged-controller teacher-label collection, not traversal/training success"
                 if args.residual_preflight:
                     from residual_results import audit_runtime
                     record["residual_runtime_audit"] = audit_runtime(run)

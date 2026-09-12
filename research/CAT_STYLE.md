@@ -45,10 +45,11 @@ zero-padding twelve actions is not a whole-body pretrained policy.
 
 ## What remains (not claimed implemented)
 
-The named-articulation observation/action bridge and same-state label primitives
-are implemented and CPU-verified (below). They are **not yet wired into live
-Isaac rollouts**. Actual whole-body distillation and the multi-scene curriculum
-trainer are not connected. No renewed overnight run should be described as ready until that path
+The named-articulation bridge is now wired into live Isaac rollouts, with saved
+same-state teacher labels, independent native-frame verification and offline
+loss gradients through the real frozen GRAIL decoder (below). Actual whole-body
+distillation updates and the multi-scene curriculum trainer are not connected.
+No renewed overnight run should be described as ready until that path
 has a real rollout/update/checkpoint test and comparison with its teachers.
 The old M2 pilot is not this pipeline and its overnight command must not be used
 as a substitute. No custom-model training is left running after this change.
@@ -113,14 +114,86 @@ Report, model contract and labelled samples:
 230 automated tests pass, including batch-512 packing and leg-only imitation
 gradients. The latter is a unit test, **not GRAIL training**.
 
-Next implementation is the live Isaac teacher-label collector: verify equivalent
-named link frames, provide CAT command/gait/delay state, record the **actually
-applied GRAIL targets**, and pair teacher leg labels with the GRAIL observations.
+The live Isaac teacher-label collector is now implemented (next section): it
+verifies equivalent named link frames, provides CAT command/gait/delay state,
+records the **actually applied GRAIL targets**, and pairs teacher leg labels
+with the original GRAIL observations.
 `AppliedTargetHistory` never advances from unexecuted teacher predictions.
 `teacher_leg_loss` supervises decoded **absolute leg targets in radians** only;
 arms/waist receive no fabricated CAT labels. Then connect this to whole-body
 distillation with GRAIL retention, before flat specialist/generalist curriculum
 and throughput benchmarks. No new overnight training was launched in this step.
+
+## Live teacher collection and GRAIL replay — 12 September
+
+`CatTeacherShadow` is an opt-in recorder in the existing evaluation loop. Only
+the unchanged released GRAIL actor drives simulated joints. It saves pre-action
+GRAIL observations, CAT observations/labels and the actually applied joint
+targets captured before automatic reset. Executed-target history is verified
+independently; the initial/reset hold has `history_ready=false`. The teacher
+never advances its history from an action that was not executed.
+
+The CAT command projection and stop/gait update are compared directly against
+the original native training functions: maximum command error `5.96e-8`, gait
+update error zero. The collector uses deterministic 1.4Hz gait, 0.07m foot lift,
+five-step odometry delay and no observation noise. This is teacher-query state,
+**not a claim to have ported the complete randomized training MDP**. A cached,
+vectorized field sampler matches the separate legacy reference sampler.
+
+Evidence:
+
+- Full unchanged-controller rollout:
+  `research/runs/20260912T094136_943795Z_stair_p1_cat_audit/`.
+  499 frames, 498 with executed history; independent CAT CPU replay error
+  `1.58e-6`. Native CAT MuJoCo forward kinematics at the saved Isaac root pose
+  and named joint positions matches all 11 sites within `9.36e-7m`.
+- Bounded 64-frame repeat with vectorized sampling and resolved GRAIL config:
+  `research/runs/20260912T095135_246506Z_stair_p1_cat_audit/`.
+  Pairing/replay passed, 63 history-paired frames; native site error below
+  `9.27e-7m`. About 56 seconds of rollout on a shared, heavily occupied GPU;
+  this is not a training-throughput benchmark.
+- CPU reconstruction of the actual GRAIL policy/checkpoint, replaying eight
+  in-domain states from the full recording, reproduces original actions within
+  `1.08e-6`. CAT absolute-leg-target MSE backpropagates through the frozen decoder
+  into its 64D post-quantization input, with finite nonzero gradients. Backbone
+  hashes are unchanged, and **zero optimizer steps** were taken.
+
+Only 59/499 frames in the stair run have all sites inside CAT's native field
+volume; the 64-frame prefix has none. Original CAT clutter-only fields do not
+describe stair traversability, and legacy out-of-bounds clamping does not make
+these reliable labels. Both packets therefore remain `training_admitted=false`.
+The offline gradient check uses in-domain frames for arithmetic verification,
+not as an admitted obstacle-avoidance dataset. This reinforces flat specialists
+first, followed by terrain-aware integration; do not train blindly on these
+diagnostic stair labels.
+
+Reproduce the collector on the previously reviewed fixture:
+
+```bash
+.venv/bin/python research/baseline.py --family stair_p1 \
+  --cat-scene research/runs/20260911T144243_747872Z_cat_scene_side-hurdle2 \
+  --cat-translation 0 -1 0 --cat-yaw 1.5707963267948966 --layout-audit \
+  --cat-teacher-contract research/runs/20260912T093526_836048Z_cat_bridge/contract.json \
+  --cat-teacher-steps 499 --execute --accept-isaac-eula --timeout 900
+
+# Replace RUN with the new output directory; no simulation in these checks.
+.venv/bin/python research/cat_teacher_results.py RUN
+../Click-and-Traverse/.venv/bin/python research/check_cat_shadow_kinematics.py RUN
+.venv/bin/python research/replay_cat_teacher_grail.py RUN
+```
+
+The first full recording predates resolved-config export. Its gradient check
+used `--policy-config-run research/runs/20260912T095135_246506Z_stair_p1_cat_audit`
+explicitly. Recovery requires matching frozen-actor hash/joint order/action
+clipping, then strict loading of the original recording's own checkpoint and
+action replay. The original evidence was not rewritten. New recordings export
+their own hashed resolved configuration. An intermediate config-export failure
+on a `PosixPath` was fixed and regression-tested before the successful repeat.
+
+Next: connect admitted flat-clutter collection to real whole-body distillation
+updates/checkpoints with GRAIL retention; then CAT specialist/generalist DAgger
+and PPO over varied scenes, followed by measured 256/512/1024-env scaling. The
+one-env diagnostic recorder is not the parallel training implementation.
 
 Sources: the pinned local CAT source/checkpoint, and the authors' repository:
 https://github.com/GalaxyGeneralRobotics/Click-and-Traverse

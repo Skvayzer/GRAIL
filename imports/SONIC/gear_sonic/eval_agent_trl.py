@@ -656,6 +656,17 @@ def main(override_config: omegaconf.OmegaConf):
             observation_shadow = ObservationShadow(env, clearance_audit, model.policy,
                                                     config.research_observation_shadow_output)
 
+        cat_teacher_shadow = None
+        if config.get("research_cat_teacher_output"):
+            if (not config.get("research_layout_output") or not run_once or not args_cli.headless
+                    or config.num_envs != 1 or contact_audit is not None or observation_shadow is not None
+                    or config.get("research_residual_preflight_output")):
+                raise ValueError("CAT teacher shadow needs an exclusive one-env headless layout run")
+            from gear_sonic.research.cat_teacher_shadow import CatTeacherShadow
+            cat_teacher_shadow = CatTeacherShadow(env, clearance_audit, model.policy,
+                config.research_cat_teacher_output, config.research_cat_teacher_contract,
+                config.research_cat_teacher_weights)
+
         avoidance_task = None
         if config.get("research_avoidance_task", False):
             if not config.get("research_residual_preflight_output") or hasattr(env.env, "research_avoidance"):
@@ -678,6 +689,7 @@ def main(override_config: omegaconf.OmegaConf):
 
         with torch.no_grad(), (contact_audit if contact_audit is not None else nullcontext()), \
                 (observation_shadow if observation_shadow is not None else nullcontext()), \
+                (cat_teacher_shadow if cat_teacher_shadow is not None else nullcontext()), \
                 (residual_audit if residual_audit is not None else nullcontext()):
             while simulation_app.is_running():
                 frame_start = time.perf_counter()
@@ -700,6 +712,8 @@ def main(override_config: omegaconf.OmegaConf):
 
                 if observation_shadow is not None:
                     observation_shadow.sample(policy_model.obs_dict_buffer, actor_state["actions"])
+                if cat_teacher_shadow is not None:
+                    cat_teacher_shadow.sample(policy_model.obs_dict_buffer, actor_state["actions"])
                 if residual_audit is not None:
                     residual_audit.sample(policy_model.obs_dict_buffer, actor_state["actions"])
                 if avoidance_task is not None:
@@ -713,6 +727,8 @@ def main(override_config: omegaconf.OmegaConf):
                 )  # noqa: F841
                 if observation_shadow is not None:
                     observation_shadow.outcome(dones)
+                if cat_teacher_shadow is not None:
+                    cat_teacher_shadow.outcome(dones)
                 if residual_audit is not None:
                     residual_audit.outcome(dones, rewards)
                 if avoidance_task is not None:

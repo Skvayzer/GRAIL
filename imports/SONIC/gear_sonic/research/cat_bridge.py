@@ -81,6 +81,41 @@ def normalize_fields(gf, bf, move_flag):
     return gf, bf
 
 
+class CatFieldSampler:
+    """Cached, vectorized equivalent of the legacy teacher's three field queries.
+
+    One corner gather for all seven channels instead of separate Python loops
+    per field/corner. Keep sample_teacher_fields as the independent slow check.
+    """
+    def __init__(self, fields, origin, resolution):
+        sdf = fields["sdf"]
+        if sdf.ndim == 3:
+            sdf = sdf[..., None]
+        self.grid = torch.cat((fields["gf"], fields["bf"], sdf), -1)
+        if (self.grid.ndim != 4 or self.grid.shape[-1] != 7
+                or min(self.grid.shape[:3]) < 2 or resolution <= 0 or not torch.isfinite(self.grid).all()):
+            raise ValueError("Finite XYZx7 teacher field grid required")
+        self.origin = self.grid.new_tensor(origin)
+        self.resolution = resolution
+        self.upper = self.grid.new_tensor(self.grid.shape[:3])-1
+        # Ordering paired with weights; flipped fractions retain native X/Z bug.
+        self.offsets = torch.tensor([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0],
+                                     [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]], device=self.grid.device)
+
+    def sample(self, points):
+        shape = points.shape[:-1]
+        idx = ((points-self.origin)/self.resolution).reshape(-1, 3)
+        valid = torch.isfinite(idx).all(-1) & ((idx >= 0) & (idx <= self.upper)).all(-1)
+        clipped = torch.minimum(torch.nan_to_num(idx).clamp_min(0), self.upper-1)
+        base = clipped.floor().long()
+        frac = (clipped-base).flip(-1)
+        corners = base[:, None]+self.offsets
+        values = self.grid[corners[..., 0], corners[..., 1], corners[..., 2]]
+        weights = torch.where(self.offsets.bool(), frac[:, None], 1-frac[:, None]).prod(-1)
+        result = (values*weights[..., None]).sum(1).reshape(*shape, 7)
+        return dict(gf=result[..., :3], bf=result[..., 3:6], sdf=result[..., 6:], in_domain=valid.reshape(shape))
+
+
 class CatObservationBridge:
     def __init__(self, contract, joint_names, body_names=None):
         if (contract["schema"] != "cat-observation-action-contract-v1"

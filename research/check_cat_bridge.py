@@ -63,7 +63,7 @@ def main():
     from ml_collections import ConfigDict
     from cat_ppo.envs.g1.play_cat import PlayG1CatEnv
     from gear_sonic.research.cat_teacher import CatTeacher
-    from gear_sonic.research.cat_bridge import (CatObservationBridge, GROUPS, SITES,
+    from gear_sonic.research.cat_bridge import (CatFieldSampler, CatObservationBridge, GROUPS, SITES,
                                                sample_teacher_fields)
     torch.set_num_threads(2)
     fixture = json.loads((ROOT/"tests/fixtures/cat_sampler.json").read_text())
@@ -74,6 +74,7 @@ def main():
     if hashlib.sha256((args.teacher/"weights.npz").read_bytes()).hexdigest() != meta["weights_sha256"]:
         raise ValueError("Teacher checksum differs from verified export")
     teacher = CatTeacher(args.teacher/"weights.npz")
+    command_errors = check_native_command(args.cat_repo)
     # Independent released ONNX actor, not another call to our PyTorch export.
     onnx = args.cat_repo/"data/models/generalist_v1/policy.onnx"
     if hashlib.sha256(onnx.read_bytes()).hexdigest() != "17372d1d7b1c6759a2eb2eea09b9589f55746def198d744517efd05ac8665f62":
@@ -103,6 +104,7 @@ def main():
         body_names = [model.body(i).name for i in body_ids]
         bridge = CatObservationBridge(contract, joint_names, body_names)
         fields = {k: tensor(getattr(env, k)) for k in ("gf", "bf", "sdf")}
+        vectorized = CatFieldSampler(fields, env.pf_origin, env.dx)
         state = env.reset()
         errors = dict(observation=0., action=0., target=0., sites=0., sampler=0.)
         resets, outside, saved = 0, 0, []
@@ -128,6 +130,9 @@ def main():
             np.testing.assert_allclose(sites[0], native_sites, atol=3e-6, rtol=1e-5)
             errors["sites"] = max(errors["sites"], float(np.max(np.abs(sites[0].numpy()-native_sites))))
             sampled = sample_teacher_fields(fields, sites, env.pf_origin, env.dx)
+            fast = vectorized.sample(sites)
+            for key in sampled:
+                torch.testing.assert_close(fast[key], sampled[key], atol=1e-6, rtol=1e-5)
             outside += int((~sampled["in_domain"]).sum())
             for key in ("gf", "bf", "sdf"):
                 expected_field = env.sample_field(getattr(env, key), sites[0].numpy())
@@ -182,6 +187,7 @@ def main():
         label_file="same_state_labels.npz",
         label_sha256=hashlib.sha256((run/"same_state_labels.npz").read_bytes()).hexdigest(),
         native_training_source_sha256=fixture["sha256"],
+        native_command_parity=command_errors,
         whole_body_distilled=False, randomized_training_mdp_ported=False)
     (run/"report.json").write_text(json.dumps(report, indent=2)+"\n")
     print(json.dumps(dict(report=str(run/"report.json"), **report), indent=2))
@@ -237,6 +243,44 @@ def check_training_packer(cat_repo, saved, bridge):
             last_action=torch.tensor(last, dtype=torch.float32)[None],
             phase=torch.tensor(phase, dtype=torch.float32)[None], foot_height=torch.tensor([[height]], dtype=torch.float32))
         np.testing.assert_allclose(actual[0], np.array(expected), atol=1e-5, rtol=2e-5)
+
+
+def check_native_command(cat_repo):
+    """Direct source-method comparison; do not substitute our own reference math."""
+    import jax.numpy as jp
+    import numpy as np
+    import torch
+    from gear_sonic.research.cat_command import field_command, gait_step
+    source = cat_repo/"cat_ppo/envs/g1/env_cat.py"
+    methods = [n for c in ast.parse(source.read_text()).body if isinstance(c, ast.ClassDef)
+               for n in c.body if isinstance(n, ast.FunctionDef)
+               and n.name in ("compute_cmd_from_rtf", "_update_phase")]
+    namespace = dict(jp=jp)
+    exec(compile(ast.Module(body=methods, type_ignores=[]), str(source), "exec"), namespace)
+    obj = SimpleNamespace(_stop_cmd=jp.zeros(4), _stance_phase=jp.zeros(2), _gait_bound=.6)
+    rng = np.random.default_rng(49)
+    gf, bf = [rng.normal(size=(20, 11, 3)).astype(np.float32) for _ in range(2)]
+    gf[0] = bf[0] = 0
+    expected = np.stack([namespace["compute_cmd_from_rtf"](obj, g[1], g[[0, 3, 4, 5, 6]], b[[0, 3, 4, 5, 6]])
+                         for g, b in zip(gf, bf)])
+    actual = field_command(torch.from_numpy(gf), torch.from_numpy(bf)).numpy()
+    np.testing.assert_allclose(actual, expected, atol=2e-6, rtol=1e-5)
+    phase_error = 0.
+    for stop_value in (100, 51, 50, 20, 1, 0):
+        for flag in (0., .75, 1.):
+            command = np.array([flag, .3*flag, -.2*flag, 0], np.float32)
+            last = np.array([1., .2, 0, 0], np.float32)
+            phase = np.array([1.9, -.7], np.float32)
+            info = dict(command=jp.array(command), last_command=jp.array(last), phase=jp.array(phase),
+                        phase_dt=jp.array(.17593), stop_timestep=jp.array(stop_value))
+            namespace["_update_phase"](obj, SimpleNamespace(info=info))
+            values = gait_step(torch.tensor(command)[None], torch.tensor(last)[None], torch.tensor(phase)[None],
+                               torch.tensor([stop_value]), .17593)
+            for value, key in zip(values, ("command", "phase", "stop_timestep")):
+                np.testing.assert_allclose(value[0], np.array(info[key]), atol=2e-6, rtol=1e-5)
+                phase_error = max(phase_error, float(np.max(np.abs(value[0].numpy()-np.array(info[key])))))
+    return dict(command_max_error=float(np.max(np.abs(actual-expected))), gait_max_error=phase_error,
+                field_cases=20, stop_transition_cases=18)
 
 
 if __name__ == "__main__":
