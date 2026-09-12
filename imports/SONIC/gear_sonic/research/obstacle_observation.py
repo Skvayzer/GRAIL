@@ -150,6 +150,9 @@ class ObstacleObservation:
             unsigned[:, n:, None], cv[:, n:, None], tv[:, n:, None]), -1)
         guidance, gv = self.guidance.sample(root, rotation, self.surface, spec.goal_scale)
         valid = cv.all(-1) & tv.all(-1) & gv
+        # Retain device-side components so a rejected observation is diagnosable.
+        # No CPU transfer or weakening of the validity gate on the normal path.
+        self.last_validity = dict(clutter=cv.all(-1), terrain=tv.all(-1), guidance=gv)
         if not all(torch.isfinite(v).all() for v in (volume, probes, guidance)):
             raise ValueError("Nonfinite packed observation")
         return dict(volume=volume, probes=probes, guidance=guidance, valid=valid)

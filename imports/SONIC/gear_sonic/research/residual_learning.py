@@ -7,6 +7,7 @@ pre-reset bootstrap values and explicit training approval.
 """
 from dataclasses import dataclass
 from contextlib import contextmanager
+import copy
 import math
 
 import torch
@@ -52,11 +53,15 @@ class ResidualActorCritic(nn.Module):
     exploration changes the simulator actions even before the first update.
     Entropy reported here is PRE-TANH Gaussian entropy, not bounded-action entropy.
     """
-    def __init__(self, probe_count, state_dim, latent_dim=64, bound=.1, initial_std=.1, seed=42):
+    def __init__(self, probe_count, state_dim, latent_dim=64, bound=.1, initial_std=.1, seed=42,
+                 critic_mode="shared"):
         super().__init__()
         if (type(state_dim) is not int or not 1 <= state_dim <= 16384
                 or not math.isfinite(initial_std) or not math.exp(-4) < initial_std < math.exp(-.5)):
             raise ValueError("Bounded state dimension and exploration std required")
+        if critic_mode not in ("shared", "independent"):
+            raise ValueError("Explicit shared legacy or independent critic required")
+        self.critic_mode = critic_mode
         self.state_dim, self.latent_dim, self.bound = state_dim, latent_dim, bound
         self.obstacle = ObstacleAdapter(probe_count, latent_dim, bound=bound, seed=seed)
         with torch.random.fork_rng(devices=[]):
@@ -66,13 +71,38 @@ class ResidualActorCritic(nn.Module):
             self.value_head = nn.Linear(128, 1)
             fraction = (math.log(initial_std)+4)/3.5
             self.std_parameter = nn.Parameter(torch.full((latent_dim,), math.log(fraction/(1-fraction))))
+            if critic_mode == "independent":
+                # Versioned architecture: no value-loss gradient reaches the actor.
+                # Normalization has no running statistics to drift during a rollout.
+                self.state_encoder = nn.Sequential(nn.LayerNorm(state_dim), self.state_encoder)
+                self.trunk.append(nn.LayerNorm(128))
+                self.critic = nn.ModuleDict({
+                    "volume": copy.deepcopy(self.obstacle.volume_net),
+                    "probes": copy.deepcopy(self.obstacle.probe_net),
+                    "fusion": copy.deepcopy(self.obstacle.fusion),
+                    "state": copy.deepcopy(self.state_encoder),
+                    "trunk": copy.deepcopy(self.trunk),
+                })
 
     def manifest(self):
-        return dict(schema="grail-cat-residual-actor-critic-v1", state_dim=self.state_dim,
+        result = dict(schema="grail-cat-residual-actor-critic-v1", state_dim=self.state_dim,
             probe_count=self.obstacle.probe_count, latent_dim=self.latent_dim, latent_bound=self.bound,
             log_std_bounds=[-4., -.5], action="pre-tanh Gaussian latent; bound*tanh(z) into frozen decoder",
             entropy="pre-tanh", value_encoder="shared obstacle and reference/proprioception trunk",
             arithmetic="float32 learner; TF32 disabled locally, frozen actor settings restored")
+        if self.critic_mode == "independent":
+            result.update(schema="grail-cat-residual-actor-critic-v2", critic_mode="independent",
+                value_encoder="independent obstacle/state/trunk; no shared learned parameters",
+                state_normalization="LayerNorm; no running statistics",
+                gradient_clipping="actor and critic independently")
+        return result
+
+    def gradient_groups(self):
+        if self.critic_mode == "shared":
+            return {"joint": list(self.parameters())}
+        critic = list(self.critic.parameters())+list(self.value_head.parameters())
+        ids = {id(p) for p in critic}
+        return {"actor": [p for p in self.parameters() if id(p) not in ids], "critic": critic}
 
     @learner_precision()
     def forward(self, packet, state):
@@ -82,7 +112,13 @@ class ResidualActorCritic(nn.Module):
         features = self.trunk(torch.cat((self.obstacle.features(packet), self.state_encoder(state)), -1))
         mean = self.obstacle.head(features)
         log_std = -4.+3.5*torch.sigmoid(self.std_parameter)
-        value = self.value_head(features).squeeze(-1)
+        value_features = features
+        if self.critic_mode == "independent":
+            c = self.critic
+            obstacle = c["fusion"](torch.cat((c["volume"](packet["volume"]),
+                c["probes"](packet["probes"]), packet["guidance"]), -1))
+            value_features = c["trunk"](torch.cat((obstacle, c["state"](state)), -1))
+        value = self.value_head(value_features).squeeze(-1)
         finite(mean, log_std, value)
         return mean, log_std.expand_as(mean), value
 

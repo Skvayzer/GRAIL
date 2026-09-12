@@ -144,7 +144,7 @@ def capture(wrapper, run, *, allow_replicated=False):
     from isaaclab.sim.utils.stage import get_current_stage
     import torch
     stage, env = get_current_stage(), wrapper.env
-    if env.num_envs != 1 and not (allow_replicated and 1 <= env.num_envs <= 4):
+    if env.num_envs != 1 and not (allow_replicated and 1 <= env.num_envs <= 16):
         raise ValueError("Terrain layout audit currently requires one environment")
     obj = env.scene["object"]
     path = obj.root_physx_view.prim_paths[0]

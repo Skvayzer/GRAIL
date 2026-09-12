@@ -70,7 +70,7 @@ def evaluation_command(run, data, stem, num_envs, gui=False, clutter_audit=False
     if avoidance_task and not residual_preflight:
         raise ValueError("Avoidance profile currently requires the no-update residual preflight")
     if residual_preflight and (not layout_audit or cat_scene is None or gui or record_video
-                              or not 1 <= num_envs <= 4 or contact_audit or observation_shadow):
+                              or not 1 <= num_envs <= (16 if avoidance_task else 4) or contact_audit or observation_shadow):
         raise ValueError("Residual preflight needs headless CAT/layout, 1..4 environments, and no other recorder")
     overrides = scene_overrides(run, data, stem, num_envs)
     overrides.update(eval_callbacks="im_eval", run_eval_loop=False,

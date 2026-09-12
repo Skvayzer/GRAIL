@@ -41,7 +41,7 @@ def tracking_metrics(row):
         values["ppo/kl_early_stop"] = int(update["kl_early_stop"])
         values["ppo/optimizer_steps_this_iteration"] = update["optimizer_steps"]
         for name in ("loss", "policy_loss", "value_loss", "pre_tanh_entropy", "approx_kl",
-                     "clip_fraction", "gradient_norm"):
+                     "clip_fraction", "gradient_norm", "actor_gradient_norm", "critic_gradient_norm"):
             samples = [batch[name] for batch in update["batches"] if name in batch]
             if samples:
                 values["ppo/"+name] = sum(samples)/len(samples)
@@ -79,7 +79,7 @@ def run_training(wrapper, frozen_policy, plan_path):
     if (plan.get("schema") != "grail-cat-training-plan-v1" or plan.get("simulation_only") is not True
             or plan.get("execute") is not True or plan.get("mode") not in ("collect", "train", "evaluate")
             or plan.get("environment_review_approved") is not True
-            or not 1 <= plan["iterations"] <= 10000 or not 1 <= wrapper.env.num_envs <= 4):
+            or not 1 <= plan["iterations"] <= 10000 or not 1 <= wrapper.env.num_envs <= 16):
         raise ValueError("Bounded, reviewed, explicitly executed simulator plan required")
     if plan["mode"] == "train" and plan.get("approve_optimizer") is not True:
         raise ValueError("Optimizer updates require a separate explicit approval flag")
@@ -106,20 +106,25 @@ def run_training(wrapper, frozen_policy, plan_path):
         complete=False, simulation_only=True, trained_avoidance_claim=False, base_sha256=base_hash,
         plan=plan, metrics=[], optimizer_steps=0, error=None)
     tracking = None
+    updater = None
     try:
         with reset_context as reset_hook:
             obs = wrapper.reset_all()
             sampler = LearnerStateSampler(wrapper)
             oracle = RuntimeObservation(wrapper, cat, run, challenge=challenge)
+            task.oracle = oracle
             config = UpdateConfig(**plan["update"])
             learner = ResidualActorCritic(len(cat.probes), sampler.manifest()["state_dim"],
-                latent_dim=frozen_policy.actor_module.token_total_dim, seed=plan["seed"]).to(wrapper.env.device).eval()
+                latent_dim=frozen_policy.actor_module.token_total_dim, seed=plan["seed"],
+                critic_mode=plan.get("critic_mode", "shared")).to(wrapper.env.device).eval()
             generator = torch.Generator(device=wrapper.env.device).manual_seed(plan["seed"])
             optimizer = torch.optim.Adam(learner.parameters(), lr=config.learning_rate)
             contract = dict(backbone_sha256=base_hash, observation=dict(state=sampler.manifest(),
                 packet=oracle.observer.spec.manifest(), probes=oracle.contract["probe_order"]),
                 algorithm=config.manifest(), curriculum_sha256=plan["curriculum_sha256"],
                 task=dict(profile="m2-reference-conditioned-posture", spec=asdict(task.spec)))
+            if plan.get("guidance_termination"):
+                contract["task"]["guidance_termination"] = "invalid-support-connection-is-true-terminal-v1"
             start_updates = (load_checkpoint(plan["resume"], learner, optimizer, generator, contract)
                              if plan.get("resume") else 0)
             initial_learner_hash = state_hash(learner)
@@ -179,7 +184,8 @@ def run_training(wrapper, frozen_policy, plan_path):
             # Exercise a real populated checkpoint on independent model/Adam/RNG
             # instances. Simulation state is intentionally not restored.
             clone = ResidualActorCritic(len(cat.probes), sampler.manifest()["state_dim"],
-                latent_dim=frozen_policy.actor_module.token_total_dim).to(wrapper.env.device).eval()
+                latent_dim=frozen_policy.actor_module.token_total_dim,
+                critic_mode=plan.get("critic_mode", "shared")).to(wrapper.env.device).eval()
             clone_opt = torch.optim.Adam(clone.parameters(), lr=config.learning_rate)
             clone_rng = torch.Generator(device=wrapper.env.device)
             loaded = load_checkpoint(checkpoint, clone, clone_opt, clone_rng, contract)
@@ -200,6 +206,18 @@ def run_training(wrapper, frozen_policy, plan_path):
             task.save()
     except Exception as error:
         report["error"] = type(error).__name__+": "+str(error)
+        if updater is not None:
+            # Preserve the last finite on-policy model, never the incomplete rollout.
+            # Checkpoint validation rejects corrupted parameters/Adam state.
+            report.update(optimizer_steps=updater.optimizer_steps-start_updates,
+                          total_optimizer_steps=updater.optimizer_steps,
+                          learner_changed=initial_learner_hash != state_hash(learner))
+            try:
+                recovery = run/"learner_recovery.pt"
+                report.update(recovery_checkpoint=str(recovery), recovery_checkpoint_sha256=
+                    save_checkpoint(recovery, learner, optimizer, generator, contract, updater.optimizer_steps))
+            except Exception as checkpoint_error:
+                report["recovery_checkpoint_error"] = type(checkpoint_error).__name__+": "+str(checkpoint_error)
         raise
     finally:
         report["backbone_unchanged"] = state_hash(frozen_policy) == base_hash

@@ -39,7 +39,10 @@ def main():
                "--num-envs", "1", "--iterations", str(math.ceil(512/config["horizon"])), "--wandb-mode", args.wandb_mode,
                "--horizon", str(config["horizon"]), "--epochs", str(config["epochs"]),
                "--minibatch-size", str(config["minibatch_size"]),
-               "--learning-rate", str(config["learning_rate"])]
+               "--learning-rate", str(config["learning_rate"]),
+               "--critic-mode", saved["model_contract"].get("critic_mode", "shared")]
+        if not saved["contract"]["task"].get("guidance_termination"):
+            cmd.append("--legacy-guidance-abort")
         cmd += (["--scene", "stair_validation_102"] if name == "validation" else ["--retention-family", name])
         if args.accept_isaac_eula:
             cmd.append("--accept-isaac-eula")

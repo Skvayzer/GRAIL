@@ -19,7 +19,7 @@ class SimulatorCollector:
                  allow_simulation_exploration=False):
         if allow_simulation_exploration is not True:
             raise ValueError("Simulator exploration is opt-in; default is no changed actions")
-        if frozen_policy.training or not 1 <= wrapper.env.num_envs <= 4:
+        if frozen_policy.training or not 1 <= wrapper.env.num_envs <= 16:
             raise ValueError("Frozen evaluation decoder and bounded simulator batch required")
         self.wrapper, self.env = wrapper, wrapper.env
         self.original = frozen_policy
@@ -60,6 +60,8 @@ class SimulatorCollector:
                         for key, value in before_packet.items()}
         needed = ~term
         if needed.any():
+            self.oracle.failure_context = dict(stage="pre_reset_final", step=self.steps+1,
+                selected_mask=needed, terminated=term, truncated=timeout)
             packet = self.oracle.sample(env_mask=needed)
             state = self.state.state(phase_offset=1, next_physical=self.state.physical(env_mask=needed), env_mask=needed)
             final_state[needed] = state
@@ -73,6 +75,7 @@ class SimulatorCollector:
         if not self.active or self.current is not None:
             raise ValueError("Active capture context and one paired step required")
         try:
+            self.oracle.failure_context = dict(stage="before_action", step=self.steps+1)
             packet, state = self.oracle.sample(), self.state.state()
             residual = self.collector.sample(packet, state)
             self.current = packet, state

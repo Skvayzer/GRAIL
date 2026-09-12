@@ -35,7 +35,7 @@ class LauncherTests(unittest.TestCase):
 
     def test_approvals_and_bounds_are_explicit(self):
         for args in (["--mode", "train"], ["--approve-optimizer"], ["--iterations", "0"],
-                     ["--iterations", "10001"], ["--num-envs", "5"], ["--horizon", "2", "--minibatch-size", "32"]):
+                     ["--iterations", "10001"], ["--num-envs", "17"], ["--horizon", "2", "--minibatch-size", "32"]):
             with self.subTest(args=args), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 parse_args(args)
         args, _ = parse_args(["--mode", "train", "--approve-optimizer"])

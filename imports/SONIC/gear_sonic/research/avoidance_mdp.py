@@ -18,6 +18,7 @@ class AvoidanceRewardsCfg(RewardsCfg):
 class AvoidanceTerminationsCfg(TerminationsCfg):
     cat_contact = None
     cat_foot_world = None
+    cat_guidance = None
 
 
 def context(env):
@@ -46,6 +47,12 @@ def contact_failure(env):
 def foot_failure(env):
     task = context(env)
     return task.measure()["foot_world_error"] > task.spec.foot_world_failure_m
+
+
+def guidance_failure(env):
+    # Only installed by the training launcher. Existing frozen demos keep their
+    # original task semantics. No invalid observation is sent to the policy.
+    return context(env).oracle.guidance_failure()
 
 
 def failure_event(env):

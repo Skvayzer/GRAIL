@@ -37,11 +37,15 @@ def parse_args(argv=None):
     p.add_argument("--execute", action="store_true")
     p.add_argument("--approve-optimizer", action="store_true")
     p.add_argument("--iterations", type=int, default=16)
-    p.add_argument("--num-envs", type=int, choices=range(1, 5), default=4)
+    p.add_argument("--num-envs", type=int, choices=range(1, 17), default=4)
     p.add_argument("--horizon", type=int, default=32)
     p.add_argument("--epochs", type=int, default=4)
     p.add_argument("--minibatch-size", type=int, default=32)
     p.add_argument("--learning-rate", type=float, default=3e-5)
+    p.add_argument("--critic-mode", choices=("shared", "independent"), default="shared",
+                   help="Optional independent critic experiment; shared preserves the legacy architecture")
+    p.add_argument("--legacy-guidance-abort", action="store_true",
+                   help="Reproduce old fail-whole-job behavior; not recommended for new training")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--checkpoint-every", type=int, default=100)
     p.add_argument("--resume", type=Path)
@@ -106,6 +110,10 @@ def main(argv=None):
     command = evaluation_command(run, data, family["stem"], args.num_envs, cat_scene=scene,
         cat_translation=placement["translation"], cat_yaw=placement["yaw"], layout_audit=True,
         residual_preflight=True, avoidance_task=True)
+    if not args.legacy_guidance_abort:
+        prefix = "manager_env.terminations.cat_guidance"
+        command += ["++"+prefix+"._target_=isaaclab.managers.TerminationTermCfg",
+                    "++"+prefix+".func=gear_sonic.research.avoidance_mdp:guidance_failure"]
     plan = dict(schema="grail-cat-training-plan-v1", simulation_only=True, execute=args.execute,
         approve_optimizer=args.approve_optimizer, environment_review_approved=True, mode=args.mode,
         iterations=args.iterations, scene=args.scene, split=spec["split"],
@@ -113,6 +121,8 @@ def main(argv=None):
         witness=None if args.retention_family else str(witness),
         witness_sha256=spec["witness_sha256"], case=spec["case"], curriculum_sha256=digest(args.curriculum),
         num_envs=args.num_envs, seed=args.seed, checkpoint_every=args.checkpoint_every,
+        critic_mode=args.critic_mode,
+        guidance_termination=not args.legacy_guidance_abort,
         resume=str(args.resume.resolve()) if args.resume else None,
         wandb_mode=args.wandb_mode, wandb_entity=args.wandb_entity, wandb_project=args.wandb_project,
         update={key: getattr(update, key) for key in ("horizon", "epochs", "minibatch_size", "learning_rate",

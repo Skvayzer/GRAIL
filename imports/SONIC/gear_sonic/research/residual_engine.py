@@ -126,9 +126,11 @@ class PPOUpdater:
                         if any(p.grad is None for p in parameters):
                             raise ValueError("A learner parameter is disconnected from the objective")
                         finite(*(p.grad for p in parameters))
-                        norm = torch.nn.utils.clip_grad_norm_(parameters, self.config.max_gradient_norm,
-                                                              error_if_nonfinite=True)
-                        row.update(gradient_norm=float(norm), skipped_kl=False)
+                        norms = {key: float(torch.nn.utils.clip_grad_norm_(group,
+                            self.config.max_gradient_norm, error_if_nonfinite=True))
+                            for key, group in self.model.gradient_groups().items()}
+                        row.update(gradient_norm=max(norms.values()), skipped_kl=False,
+                                   **{key+"_gradient_norm": value for key, value in norms.items()})
                         if optimize:
                             self.optimizer.step()
                             steps += 1
