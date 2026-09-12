@@ -8,7 +8,14 @@ smoke passed: 262,144 transitions, 1,024 optimizer steps, finite checkpoints,
 changed transfer/distillation/PPO weights and unchanged frozen provenance.
 Measured end-to-end throughput was about 3,782 environment-steps/s; at least
 15.56 GiB device memory remained free. This validates the learner plumbing,
-**not successful learned navigation**. The sustained run is being launched.
+**not successful learned navigation**. The sustained run has started:
+
+- Run: `research/runs/20260912_cat_generated_full_shared_gpu_v1`
+- Launch revision: `1b79057`; worker PID recorded in `process.json` (2762897 at launch).
+- [W&B run p3rsz237](https://wandb.ai/skvayzer/grail-cat/runs/p3rsz237)
+- 2,048 environments, default 226,492,416-transition schedule, 24h wall limit.
+- First training checkpoint saved at 65,536 transitions / 256 optimizer steps.
+
 No other user's process was modified.
 
 The new launch preflight refuses unreviewed robot-deployment GPU processes.
@@ -176,6 +183,18 @@ tail -f research/runs/new_cat_full/worker.log
 # status.json / metrics.jsonl / latest.json / wandb.json live in the run directory.
 # To stop, inspect process.json and send SIGTERM to that run's exact worker PID.
 ```
+
+For the active September 12 run:
+
+```bash
+tail -f research/runs/20260912_cat_generated_full_shared_gpu_v1/worker.log
+cat research/runs/20260912_cat_generated_full_shared_gpu_v1/status.json
+```
+
+The first checkpoint and W&B upload were verified. Startup compute was about
+3,800 env-steps/s, process VRAM about 5.4 GiB with another user's job still
+present. Check current logs rather than assuming this launch-time snapshot is
+still current. Early transfer losses are not independent navigation evaluation.
 
 The deployment-review flag is not a generic safety bypass: use it only after an
 operator confirms the exact named deployment PID is not controlling hardware.

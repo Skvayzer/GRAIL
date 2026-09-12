@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-09-12 — full generated-clutter training launched
+
+- Launched `20260912_cat_generated_full_shared_gpu_v1` at code revision `1b79057`,
+  PID 2762897, detached from the SSH session. W&B:
+  https://wandb.ai/skvayzer/grail-cat/runs/p3rsz237 (skvayzer/grail-cat).
+- 2,048 independent simulated environments; generated 180-layout training bank,
+  45 held-out geometries, full transfer/specialist-PPO/DAgger/generalist-PPO
+  schedule, 226,492,416-transition budget and 24h wall cap. No real-robot actions.
+- First update/checkpoint completed: 65,536 transitions / 256 optimizer steps,
+  finite losses, about 3,817 env-steps/s. Total process VRAM about 5.4 GiB,
+  approximately 16 GiB device-free; other compute workload still running.
+  This is launch evidence, not a completed run or proof of navigation success.
+
 ## 2026-09-12 — shared-GPU optimizer smoke passed
 
 - G1 deployment no longer running; user explicitly authorized using remaining
