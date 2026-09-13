@@ -1,6 +1,44 @@
 # Generated CAT clutter and parallel whole-body learning
 
-## Current state — 13 September 2026
+## Current state — 14 September 2026
+
+**Running with 25,344 environments and policy evaluation disabled.** Run:
+`research/runs/20260914_cat_generated_full_25344_noeval_v1`, launch revision
+`a8f359f`, PID 950295 at launch. Resumes the cleanly stopped 24,576-env run's
+`checkpoint_000107343872.pt` (107,343,872 cumulative transitions / 65,792 optimizer
+steps). All specialists and DAgger are complete; continuation is generalist PPO.
+The source checkpoint checksum was checked before launch. Learning schedules,
+generated bank and checkpoint cadence are unchanged; the environment batch is
+54.7% larger than 16,384. The Torch allocator cap is 23 GiB, plus simulator
+allocations, and the 1 GiB device-free guard remains active.
+
+[Current W&B run](https://wandb.ai/skvayzer/grail-cat/runs/rmx6awvl).
+After four resumed PPO rollouts: 110,587,904 cumulative transitions / 66,816
+optimizer steps. Measured process use is **28.553 GiB (30.66 decimal GB)**,
+with **1.794 GiB CUDA-free**, roughly 49–52k environment-steps/s. This is the
+selected high-memory batch; remaining device memory is fluctuation headroom,
+not a target for dummy allocations. The process is detached and left training.
+Checkpoint `checkpoint_000110587904.pt` is saved. No policy evaluation ran:
+`--no-eval` is recorded, all new metrics have `evaluations_enabled=false`, and
+zero `evaluation_*.json` files exist even after a former periodic-eval boundary.
+This verifies runtime behavior, not policy success; training success remains zero.
+
+The 24,576-env intermediate continuation performed seven real PPO rollouts,
+using 27.926–28.113 GiB process VRAM with at least 2.233 GiB CUDA-free at update
+boundaries, approximately 51–53k environment-steps/s. It saved all new progress
+before the final small increase; this was training, not a separate evaluation.
+
+At the user's explicit request, `--no-eval` disables **both periodic and
+phase-end policy evaluations**, including the final phase. There is no automatic
+post-training evaluation in this run. Training metrics, checkpoint saving and
+resource guards remain enabled. The user will evaluate after training finishes.
+Config and W&B training metrics record `evaluations_enabled=false`; the former
+validation-scene visit count is inherited from the resumed checkpoint and does
+not imply fresh evaluations. No evaluation rollouts are used for restart checks.
+The existing user-reviewed deployment PID 604747 is still the only exemption;
+new deployment processes stop training. Other users' processes remain untouched.
+
+## Previous continuation — 13 September 2026
 
 **Running and verified with 16,384 environments:**
 `research/runs/20260913_cat_generated_full_16384_v1`, launch revision `05537ed`,
@@ -226,7 +264,7 @@ about 3,782 environment-steps/s, implying roughly 16.6 hours for the transition
 budget alone, plus held-out evaluation and initialization. Full-run throughput
 will vary with other workloads and episode/reset behavior; the 24h cap remains.
 
-Held-out-geometry evaluations have no teacher assistance and run full 20 s
+When enabled, held-out-geometry evaluations have no teacher assistance and run full 20 s
 episodes. Success requires remaining upright, no post-grace collision, and
 staying within 0.2 m of the goal for the last second. Exit-plane crossing alone
 is never success. Completed episode records preserve geometry IDs/failure types.
@@ -238,7 +276,9 @@ it is learner continuation, **not bit-exact simulator replay**. Source datasets
 and earlier pilot checkpoints are not overwritten. Logs flush every rollout
 update; checkpoints are saved when crossing each 1,638,400-transition interval
 (25 original 2048-env rollouts), and at first-resumed-update/phase/stop boundaries.
-Periodic evaluation uses 16,384,000-transition intervals plus phase boundaries.
+Periodic evaluation uses 16,384,000-transition intervals plus phase boundaries
+unless `--no-eval` is supplied. The current run uses `--no-eval`: neither
+periodic, phase-end nor automatic final evaluation rollouts run.
 Low disk or
 a new unreviewed GPU robot deployment causes a checkpointed stop.
 
@@ -272,8 +312,8 @@ tail -f research/runs/new_cat_full/worker.log
 To monitor the current resized run:
 
 ```bash
-tail -f research/runs/20260913_cat_generated_full_16384_v1/worker.log
-cat research/runs/20260913_cat_generated_full_16384_v1/status.json
+tail -f research/runs/20260914_cat_generated_full_25344_noeval_v1/worker.log
+cat research/runs/20260914_cat_generated_full_25344_noeval_v1/status.json
 ```
 
 Exact current launch (record only; **do not start another copy** or reuse the
@@ -281,10 +321,10 @@ PID exemption without fresh review):
 
 ```bash
 .venv/bin/python research/cat_parallel_train.py \
-  research/runs/20260913_cat_generated_full_16384_v1 \
-  --num-envs 16384 --hours 24 --wandb-mode online \
-  --torch-memory-limit-gib 17 --min-free-gpu-gib 1 \
-  --resume research/runs/20260912_cat_generated_full_16768_v1/checkpoint_000010612736.pt \
+  research/runs/20260914_cat_generated_full_25344_noeval_v1 \
+  --num-envs 25344 --hours 24 --wandb-mode online --no-eval \
+  --torch-memory-limit-gib 23 --min-free-gpu-gib 1 \
+  --resume research/runs/20260914_cat_generated_full_24576_noeval_v1/checkpoint_000107343872.pt \
   --reviewed-deployment-pid 604747 \
   --accept-isaac-eula --detach
 ```

@@ -1,5 +1,39 @@
 # Progress
 
+## 2026-09-14 — larger GPU batch; policy evaluation disabled by request
+
+- User requested using more available VRAM, then explicitly requested no policy
+  validation/evaluation during training. Added `--no-eval` with one gate covering
+  both periodic and phase-end evaluation calls. Checkpoints and guards remain.
+  Config and training metrics expose `evaluations_enabled=false`; no automatic
+  final evaluation runs. Three instantaneous CPU gate tests pass; no simulated
+  evaluation or validation rollout was run for this change.
+- Stopped only our 16,384-env worker gracefully: final checkpoint
+  `checkpoint_000101838848.pt`, 101,838,848 transitions / 64,000 optimizer steps.
+  SHA-256 `d416ee09370b47f85dd0dc3a998d2307c0442a1bba196ec08c1ca6aeb063e699`.
+  All specialist stages and DAgger completed; generalist PPO is in progress.
+- Launched `20260914_cat_generated_full_24576_noeval_v1` at `a8f359f`, PID 947511,
+  resuming that checkpoint with 24,576 envs, 23 GiB Torch cap, 1 GiB free-memory
+  stop guard, 24h wall cap, and only the existing user-reviewed PID 604747 exempt.
+  Other processes untouched. Seven real PPO updates: 107,343,872 transitions /
+  65,792 optimizer steps; about 51–53k environment-steps/s, 27.926–28.113 GiB
+  process VRAM, minimum 2.233 GiB CUDA-free. `evaluations_enabled=false`.
+- Saved all intermediate progress as `checkpoint_000107343872.pt`, SHA-256
+  `afc9824cecfafe67f8af551e4a47a4e8e0ca00f3e1c54a0ac0bbbe522360913a`.
+  Resumed in `20260914_cat_generated_full_25344_noeval_v1`, PID 950295 at launch,
+  at 25,344 envs with the same memory limits and no-evaluation flag. This final
+  small increase targets about 29 GiB while retaining fluctuation headroom.
+- Final run is training: after four PPO rollouts, 110,587,904 cumulative
+  transitions / 66,816 optimizer steps; 28.553 GiB process VRAM (30.66 GB),
+  1.794 GiB CUDA-free, about 49–52k env-steps/s. New checkpoint
+  `checkpoint_000110587904.pt` saved. W&B:
+  https://wandb.ai/skvayzer/grail-cat/runs/rmx6awvl.
+- No evaluation rollouts ran: the config/metrics say disabled, and no
+  `evaluation_*.json` exists after crossing a former periodic-evaluation boundary.
+  Historical validation visits (45) are inherited counters only. Training and
+  checkpointing continue, no automatic evaluation after completion. No claim
+  of policy success; recent training success still zero. Other process untouched.
+
 ## 2026-09-13 — user-authorized shared-GPU restart at 16,384 environments
 
 - Reverified final checkpoint `checkpoint_000010612736.pt`: SHA-256, finite
