@@ -54,6 +54,12 @@ def interval_crossed(before,after,interval):
     return after//interval>before//interval
 
 
+def should_evaluate(*,enabled,smoke_updates,stop_requested,periodic_due,phase_complete):
+    """One gate for both periodic and phase-end policy rollouts."""
+    return bool(enabled and not smoke_updates and not stop_requested
+                and (periodic_due or phase_complete))
+
+
 def gpu_robot_deployments():
     """Read only: identify potentially timing-critical robot users of this GPU."""
     result=subprocess.run(["nvidia-smi","--query-compute-apps=pid","--format=csv,noheader,nounits"],
@@ -98,6 +104,8 @@ def main():
     p.add_argument("--min-free-gpu-gib",type=float,default=2.,
         help="Checkpointed stop below this device headroom; minimum supported reserve is 1 GiB")
     p.add_argument("--wandb-mode",choices=("online","offline","disabled"),default="online")
+    p.add_argument("--no-eval",action="store_true",
+        help="Disable all periodic and phase-end policy evaluations; checkpoints still saved")
     p.add_argument("--resume",type=Path)
     p.add_argument("--seed",type=int,default=20260912)
     p.add_argument("--no-randomization",action="store_true",help="Benchmark diagnostics only")
@@ -275,7 +283,8 @@ def train(a):
     config=dict(schema="cat-generated-whole-body-training-v1",args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},
         phase_budget_transitions=phase_budgets,initial_phase_transitions=list(phase_progress),
         budget_semantics="Preserve transitions on resize; last complete vector rollout can overshoot each stage by less than one batch",
-        checkpoint_interval_transitions=1638400,evaluation_interval_transitions=16384000,
+        checkpoint_interval_transitions=1638400,evaluations_enabled=not a.no_eval,
+        evaluation_interval_transitions=None if a.no_eval else 16384000,
         resume_checkpoint_sha256=sha(a.resume) if a.resume else None,
         source_git_revision=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
         source_files_sha256={name:sha(ROOT/name) for name in ("cat_parallel_train.py","cat_parallel_env.py",
@@ -290,6 +299,8 @@ def train(a):
             "physical floor and CAT SDF-only clutter; full GRAIL terrain environment remains a later task"],
         robot_actuation=False)
     (a.run/"config.json").write_text(json.dumps(config,indent=2)+"\n")
+    if a.no_eval:
+        print("POLICY_EVALUATION disabled: no periodic or phase-end eval rollouts; checkpoints enabled",flush=True)
     import wandb
     wb=wandb.init(entity="skvayzer",project="grail-cat",name=a.run.name,dir=str(a.run),
         config=config,mode=a.wandb_mode,job_type="generated-clutter-whole-body")
@@ -453,6 +464,7 @@ def train(a):
             episodes=env.completed;env.completed=[]
             metrics=dict(total_steps=total_steps,optimizer_updates=total_updates,phase=phase_id,family=family,kind=kind,
                 phase_update=update,teacher_fraction=beta,loss=average[0],leg_mse=average[1],retention_mse=average[2],
+                evaluations_enabled=not a.no_eval,
                 phase_transitions=phase_progress[phase_id],phase_budget_transitions=phase_budgets[phase_id],
                 value_loss=average[3],reward=float(data["reward"].mean()),
                 env_steps_per_second=count/(time.monotonic()-tick),episodes=len(episodes),
@@ -480,7 +492,9 @@ def train(a):
             if metrics["cuda_free_gb"]<a.min_free_gpu_gib:
                 print("GPU headroom below configured reserve: saving and stopping",flush=True)
                 stop_requested=True
-            if not stop_requested and not a.smoke_updates and (evaluation_due or phase_complete):
+            if should_evaluate(enabled=not a.no_eval,smoke_updates=a.smoke_updates,
+                               stop_requested=stop_requested,periodic_due=evaluation_due,
+                               phase_complete=phase_complete):
                 save(phase_id,update+1)
                 (a.run/"status.json").write_text(json.dumps(dict(**metrics,state="evaluating",robot_actuation=False))+"\n")
                 obs=evaluate(policy,family)
