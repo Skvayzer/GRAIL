@@ -1,8 +1,35 @@
 # Generated CAT clutter and parallel whole-body learning
 
-## Current state — 12 September 2026
+## Current state — 13 September 2026
 
-**Restart blocked by recurring GPU deployment jobs:** prepared 16,384
+**Running and verified with 16,384 environments:**
+`research/runs/20260913_cat_generated_full_16384_v1`, launch revision `05537ed`,
+worker PID 920235 at launch. Resumes the verified 10,612,736-transition /
+19,456-optimizer-step checkpoint below. The generated bank, stage budgets,
+17 GiB Torch allocator cap, 1 GiB device-free guard and 24h wall cap are unchanged.
+
+The user explicitly authorized sharing the GPU with existing deployment PID
+604747 and stated its owner is not using it. Passed `--reviewed-deployment-pid`
+for that exact PID only. Its Ethernet/all-output configuration was disclosed;
+0% GPU usage is not proof that it is stale or disconnected from hardware.
+New deployment PIDs still trigger stopping. No other process was signalled or
+modified; our workload remains simulation-only. The run directory records the
+approval scope in `deployment_review.json`. Preflight: roughly 30.4 GiB free,
+existing deployment using 586 MiB.
+
+[Current W&B run](https://wandb.ai/skvayzer/grail-cat/runs/d27kk9up) reports running.
+After five resumed PPO rollouts: 13,234,176 cumulative transitions / 20,736
+optimizer steps, about 48,000 environment-steps/s. Measured process VRAM is
+19.855 GiB (21.32 decimal GB), with 10.492 GiB CUDA device-free. CPU audit of
+`checkpoint_000012709888.pt` passes SHA-256, finite tensors, preserved progress,
+updated PPO parameters and unchanged frozen/bank provenance. Twelve targeted
+CPU tests pass. This is restart/checkpoint evidence, not learned-navigation
+success: early PPO success is still zero. The detached process is left running
+under the existing transition schedule and wall-time limit.
+
+## Previous stop and restart attempts — 12 September 2026
+
+**Historical: restart blocked by recurring GPU deployment jobs:** prepared 16,384
 environments, a reduction of 384 (2.29%) from the previous batch. Latest attempt:
 `research/runs/20260912_cat_generated_full_16384_v2`, launch revision `fe56e5c`,
 worker PID 13018 at launch, sent SIGTERM during startup.
@@ -16,8 +43,8 @@ Another G1 deployment then appeared under the same user (PID 14243), so the
 second startup was also stopped. These short-lived jobs can reappear after a
 clean preflight; do not repeatedly restart or exempt them without coordination
 with their operator. Their command line suggests loopback/ZMQ simulation, but
-hardware isolation has not been confirmed by the operator. Training is paused.
-The PyTorch allocator cap remains 17 GiB;
+hardware isolation had not been confirmed by the operator. Those attempts were paused.
+The PyTorch allocator cap was 17 GiB;
 simulator allocations are additional. The 1 GiB device-free stop reserve and
 runtime robot-deployment guard are unchanged, with no PID exemptions.
 
@@ -242,22 +269,23 @@ tail -f research/runs/new_cat_full/worker.log
 # To stop, inspect process.json and send SIGTERM to that run's exact worker PID.
 ```
 
-To inspect the latest attempted resized run:
+To monitor the current resized run:
 
 ```bash
-tail -f research/runs/20260912_cat_generated_full_16384_v2/worker.log
-cat research/runs/20260912_cat_generated_full_16384_v2/status.json
+tail -f research/runs/20260913_cat_generated_full_16384_v1/worker.log
+cat research/runs/20260913_cat_generated_full_16384_v1/status.json
 ```
 
-Exact attempted launch (record only; coordinate GPU use and use a new run
-directory before retrying):
+Exact current launch (record only; **do not start another copy** or reuse the
+PID exemption without fresh review):
 
 ```bash
 .venv/bin/python research/cat_parallel_train.py \
-  research/runs/20260912_cat_generated_full_16384_v2 \
+  research/runs/20260913_cat_generated_full_16384_v1 \
   --num-envs 16384 --hours 24 --wandb-mode online \
   --torch-memory-limit-gib 17 --min-free-gpu-gib 1 \
   --resume research/runs/20260912_cat_generated_full_16768_v1/checkpoint_000010612736.pt \
+  --reviewed-deployment-pid 604747 \
   --accept-isaac-eula --detach
 ```
 

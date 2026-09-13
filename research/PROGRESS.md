@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-09-13 — user-authorized shared-GPU restart at 16,384 environments
+
+- Reverified final checkpoint `checkpoint_000010612736.pt`: SHA-256, finite
+  tensors, 10,612,736 cumulative transitions and 19,456 optimizer steps.
+  Continues lateral PPO; completed lateral teacher transfer is preserved.
+- User explicitly authorized training alongside existing deployment PID 604747,
+  stating the owner is not using it. Disclosed that Ethernet/all-output flags
+  mean low GPU usage does not prove staleness. The exception is only for that
+  PID, recorded in `deployment_review.json`; new deployment checks remain active.
+  No other process modified and no real-robot actuation from our workload.
+- Launched detached `20260913_cat_generated_full_16384_v1` at `05537ed`,
+  PID 920235 at launch. 16,384 environments, same generated bank and transition
+  budgets, 17 GiB Torch cap, 1 GiB free-memory stop guard, 24h wall cap.
+  Approximately 30.4 GiB device memory was free at preflight.
+- Restart verified after five PPO rollouts: 13,234,176 cumulative transitions /
+  20,736 optimizer steps, roughly 48k environment-steps/s. Measured process
+  use 19.855 GiB (21.32 GB), 10.492 GiB CUDA-free; memory guard retained.
+  W&B is running: https://wandb.ai/skvayzer/grail-cat/runs/d27kk9up.
+- CPU-audited `checkpoint_000012709888.pt` (12,709,888 transitions / 20,480
+  optimizer steps), SHA-256:
+  `16cb279784eb3d047192d1db9946c04751ed4896d9958789d654c8ca5967f972`.
+  Finite tensors, progress preservation, changed PPO parameters and unchanged
+  frozen/bank provenance pass. Twelve targeted CPU tests pass. Detached worker
+  left running; early success remains zero, so no navigation-success claim.
+
 ## 2026-09-12 — memory guard stop; requested restart with 16,384 environments
 
 - The 16,768-env run subsequently reached 20.068 GiB process use / 0.959 GiB
