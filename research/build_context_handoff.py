@@ -125,6 +125,11 @@ class Package:
             self.exclude(path, "non-UTF8/binary file"); return
         if b"\x00" in data:
             self.exclude(path, "binary NUL bytes"); return
+        if any(pattern.search(data) for pattern in SECRET_PATTERNS):
+            # Third-party headers can embed example private-key syntax. Omit
+            # and disclose the entire file rather than weaken the credential
+            # check or mutate source to make the archive look complete.
+            self.exclude(path, "credential-like content or embedded key example; not exported"); return
         if n > limit:
             removed = []
             reduced = compact(json.loads(data), omitted=removed)
