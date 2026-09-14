@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-09-14 — completed run recorded in illustrated implementation report
+
+- Created the CPU-only `research/build_implementation_report.py` and
+  `research/IMPLEMENTATION_REPORT.md`. The Desktop PDF has 18 pages of proposal
+  traceability, architecture, existing scene figures, generated-bank details,
+  measured learning/resource curves, prior comparisons, and remaining gaps.
+  It uses existing evidence only: no new simulator, policy evaluation, training,
+  robot connection, or change to training settings.
+- Final production status is now `completed`: 227,373,056 transitions and
+  103,680 optimizer updates, checkpoint `checkpoint_000227373056.pt` in
+  `20260914_cat_generated_full_25344_noeval_v1`. SHA-256:
+  `7f4240808cc9bd935e1d64e2799df997130eff3df251dbf51dbdc5a63189bdc8`.
+- Completion is not successful traversal. Final 20 logged updates: 285,754
+  completed training episodes, 0% success, 88.43% falls, 15.53% collision
+  indicator (episode-weighted; indicators can overlap). Final checkpoint remains
+  unevaluated. The report distinguishes this flat-floor SDF-clutter learner
+  from the earlier reference-conditioned physical terrain/clutter diagnostics.
+- Final-run maximum logged process VRAM was 28.5547 GiB (~30.66 decimal GB),
+  median training throughput ~50.84k environment-steps/s, minimum CUDA-free
+  memory 1.5865 GiB. No evaluation files exist in either no-evaluation run.
+
 ## 2026-09-14 — larger GPU batch; policy evaluation disabled by request
 
 - User requested using more available VRAM, then explicitly requested no policy
