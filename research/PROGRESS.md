@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-09-14 — lightweight cross-session context handoff
+
+- Added `research/handoff/` with authoritative current status, conversation
+  decisions, failed/completed training facts, v2 proposed-versus-implemented
+  boundaries, related repositories, branch/environment isolation instructions,
+  and a suggested opening prompt for the next session.
+- Added `research/build_context_handoff.py` to package text source snapshots,
+  research Git patch history, Obsidian notes, small recorded evidence, the PDF
+  and selected figures. User explicitly rejected copying the 105 GB workspace.
+  The builder caps the final ZIP at 40 MiB, excludes model weights/arrays/venvs
+  and credentials, records recovery paths/pins, and verifies member hashes/CRC.
+- This is context packaging only. No simulation, evaluation, training, robot
+  connection, branch switch or runtime configuration changes are performed.
+  Old checkpoints and projects stay intact; the new branch is not created yet.
+
 ## 2026-09-14 — revised proposal: full frozen SONIC pipeline plus CAT residual adapter
 
 - Re-audited the completed CAT-style trainer: the GRAIL body decoder and CAT
