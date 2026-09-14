@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-09-14 — revised proposal: full frozen SONIC pipeline plus CAT residual adapter
+
+- Re-audited the completed CAT-style trainer: the GRAIL body decoder and CAT
+  feature trunk were frozen; adapter, exploration variance and critic trained.
+  Navigation bypassed the original motion encoder/FSQ and used a zero nominal
+  token. Do not describe that run as whole-body decoder fine-tuning.
+- Added `research/FROZEN_SONIC_ADAPTER_PROPOSAL.md`, mirrored in Obsidian as
+  `GRAIL-CAT - Frozen SONIC Adapter Proposal v2.md`. Marked the original Obsidian
+  proposal superseded while preserving its historical text.
+- New proposed route: keep the full terrain-trained SONIC encoder, terrain
+  conditioning, quantizer, decoder and base statistics frozen; learn a CAT
+  pre-FSQ residual around valid motion conditioning, inspired by GRAIL's
+  manipulation adapter. No progressive unfreezing. A causal goal-to-motion
+  provider is a distinct later requirement, not an existing capability.
+- Proposal includes generated-clutter specialists/generalist training, physical
+  contact semantics, later manipulation conditioning, explicit freeze/parity
+  checks and missing PPO diagnostics. Freezing is not a demonstrated cure for
+  the failed run or a guarantee of retained skills under arbitrary commands.
+- Documentation only: no training/code/config/robot changes, no simulator or
+  policy evaluation. Automatic evaluation remains disabled by request.
+
 ## 2026-09-14 — completed run recorded in illustrated implementation report
 
 - Created the CPU-only `research/build_implementation_report.py` and
